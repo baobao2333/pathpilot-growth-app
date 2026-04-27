@@ -32,11 +32,8 @@ import {
   daysBetween,
   ensureTodayTasks,
   levelFromState,
-  materialStatusLabel,
   refreshBadges,
   riskItems,
-  taskKindLabel,
-  taskStatusLabel,
   todayKey,
   totalProgress,
   yearProgress,
@@ -70,33 +67,603 @@ type AgentStatus = {
   mode: string;
 };
 
+type Language = "en" | "zh" | "ja";
+type LanguageMode = Language | "auto";
+type AgentMode = "breakdown" | "diagnosis" | "learning" | "polish" | "interview" | "materials";
+
 const localKey = "pathpilot-growth-state";
+const languageKey = "pathpilot-language-mode";
 
-const navItems: Array<{ id: View; label: string; icon: typeof Home }> = [
-  { id: "today", label: "今日路径", icon: Home },
-  { id: "roadmap", label: "三年路线", icon: Map },
-  { id: "tasks", label: "任务系统", icon: CalendarCheck },
-  { id: "learning", label: "学习中心", icon: BookOpen },
-  { id: "portfolio", label: "作品集", icon: BriefcaseBusiness },
-  { id: "visa", label: "积分材料", icon: Landmark },
-  { id: "opportunities", label: "机会雷达", icon: Radar },
-  { id: "reviews", label: "复盘中心", icon: ClipboardList },
-  { id: "achievements", label: "成就", icon: Trophy },
-  { id: "agent", label: "AI Coach", icon: Bot },
-  { id: "settings", label: "设置", icon: Settings },
-];
-
-const modePrompts: Record<string, string> = {
-  "任务拆解": "请把当前最重要的一个滞后目标拆成本周可执行任务，并说明每个任务推进哪个资产。",
-  "进度诊断": "请诊断我当前三年路径是否滞后，指出最高优先级风险和本周调整方案。",
-  "学习建议": "请根据当前学习进度，为系统分析师、日语、作品集各给一个最小下一步。",
-  "文档润色": "请帮我优化作品集中的项目表达，要求真实、专业、适合日本 AI/产品岗位。",
-  "面试模拟": "请模拟一家日本 AI 公司 Product Manager 面试，给我 6 个问题和回答评分标准。",
-  "材料检查": "请检查我的高度人才/技人国材料清单缺口，并按优先级排列。",
+const languageOptions = ["auto", "en", "zh", "ja"] as const;
+const languageLabels: Record<LanguageMode, string> = {
+  auto: "Auto",
+  en: "English",
+  zh: "中文",
+  ja: "日本語",
 };
 
-function formatToday() {
-  return new Intl.DateTimeFormat("zh-CN", {
+const localeByLanguage: Record<Language, string> = {
+  en: "en-US",
+  zh: "zh-CN",
+  ja: "ja-JP",
+};
+
+const copy = {
+  en: {
+    brandSubtitle: "Japan career path",
+    loading: "Loading your three-year path.",
+    nav: {
+      today: "Today",
+      roadmap: "Roadmap",
+      tasks: "Tasks",
+      learning: "Learning",
+      portfolio: "Portfolio",
+      visa: "Points & docs",
+      opportunities: "Radar",
+      reviews: "Reviews",
+      achievements: "Badges",
+      agent: "AI Coach",
+      settings: "Settings",
+    },
+    sidebar: { streak: "day streak" },
+    metrics: {
+      annualProgress: "Year progress",
+      assetScore: "Asset score",
+      todayTasks: "Today tasks",
+      completion: "Done today",
+      plannedTime: "Planned time",
+      focus: "Focus",
+    },
+    save: { error: "Local only", saving: "Saving", saved: "Saved" },
+    taskKind: { main: "Main", maintenance: "Maintain", asset: "Asset", explore: "Explore", review: "Review" },
+    taskStatus: { todo: "Todo", doing: "Doing", done: "Done", skipped: "Skipped", postponed: "Postponed" },
+    materialStatus: { "not-started": "Not started", planned: "Planned", doing: "Preparing", done: "Done", verify: "Verify" },
+    education: { bachelor: "Bachelor", master: "Master", doctor: "Doctorate" },
+    intensity: { light: "Light", standard: "Standard", intensive: "Intensive" },
+    today: {
+      main: "Today",
+      detailBack: "Today",
+      target: "Goal",
+      taskText: "Task text",
+      notes: "Notes",
+      exercise: "Exercise",
+      showAnswer: "Show reference answer",
+      answer: "Answer",
+      explanation: "Explanation",
+      hero: "Do only what moves the three-year outcome today.",
+      day: "Day",
+      freezeCards: "freeze cards",
+      totalProgress: "Total path progress",
+      askHermes: "Ask Hermes",
+      completeTask: "Complete task",
+      pathProgress: "Three-year progress",
+      analyst: "Systems analyst",
+      portfolioV1: "Portfolio V1",
+      risk: "Path risk",
+    },
+    units: { minutes: "min", tasks: "tasks", doneMinutes: "min closed" },
+    tasks: {
+      title: "Task system",
+      bannerTitle: "Today is planned from current progress",
+      emptySummary: "The app creates about two hours of tasks and writes a daily summary when it opens.",
+      all: "All",
+    },
+    learning: { title: "Learning center", notePlaceholder: "Notes, mistakes, or next step" },
+    portfolio: {
+      title: "Project portfolio",
+      newProject: "New project",
+      newProjectTitle: "New portfolio project",
+      newProjectNextStep: "Write the problem and target users.",
+      problem: "Problem",
+      users: "Target users",
+      solution: "Solution",
+      evidence: "Evidence / metrics",
+      nextStep: "Next step",
+    },
+    visa: {
+      scoreTitle: "Highly skilled points",
+      high: "80+ range",
+      ready: "Ready to watch",
+      needsWork: "Needs strengthening",
+      education: "Education",
+      age: "Age",
+      workYears: "Work years",
+      annualIncome: "Target income (JPY)",
+      noJlpt: "None",
+      japaneseDegree: "Japanese university degree",
+      advancedCertificate: "Relevant certificate",
+      researchPatent: "Research / patent / result",
+      finePrint: "For planning only. Not official or professional advice.",
+      materials: "Materials",
+    },
+    opportunity: {
+      title: "Opportunity radar",
+      bannerTitle: "Candidate opportunities refresh daily",
+      bannerText: "Sources use public job APIs first, ranked by AI / Product / Japan / visa relevance.",
+      bannerNote: "No need to add placeholder companies manually; status only tracks follow-up progress.",
+      tier: { core: "Core", target: "Target", watch: "Watch" },
+      source: "Source",
+      generated: "Generated",
+      visaFit: "Visa / remote fit",
+      priority: "Priority watch",
+      confirm: "Needs review",
+      status: "Status",
+      fit: "Fit",
+      statusLabels: { research: "Researching", contacted: "Contacted", interviewing: "Interviewing", archived: "Archived" },
+    },
+    review: {
+      title: "Background review",
+      weekly: "Weekly",
+      monthly: "Monthly",
+      empty: "Weekly and monthly reviews are generated when state is read.",
+      history: "Review history",
+      missing: "No highlight yet",
+    },
+    achievement: { level: "Path level", badges: "Badges" },
+    agent: {
+      detected: "Hermes detected",
+      missing: "Hermes not connected",
+      outputs: "Target outputs",
+      boundaries: "Boundaries",
+      generatingDaily: "Hermes is rebuilding today's plan",
+      generateDaily: "Rebuild today's background plan",
+      running: "Hermes is thinking",
+      run: "Call Hermes",
+      errorTitle: "Call failed. Manual prompt is ready.",
+      notes: "AI output history",
+      empty: "No AI Coach output yet.",
+      fallbackTitle: "PathPilot AI Coach request",
+      mode: "Mode",
+      currentState: "Current state",
+      request: "Request",
+      outputLanguage: "Output language",
+    },
+    settings: {
+      profile: "Profile",
+      language: "Interface language",
+      pathName: "Path name",
+      startDate: "Start date",
+      targetYear: "Target year",
+      targetRole: "Target role",
+      currentPhase: "Current phase",
+      intensity: "Study intensity",
+      japaneseLevel: "Japanese level",
+      data: "Data & Hermes",
+      exportJson: "Export JSON",
+      importJson: "Import JSON",
+      reset: "Reset demo data",
+      hermesAvailable: "Hermes Agent available",
+      hermesMissing: "Hermes Agent disconnected",
+      hermesHint: "The backend calls hermes chat -Q through WSL; if it fails, the AI Coach page keeps a manual prompt.",
+    },
+  },
+  zh: {
+    brandSubtitle: "日本高度人才路径",
+    loading: "正在装载你的三年路径。",
+    nav: {
+      today: "今日路径",
+      roadmap: "三年路线",
+      tasks: "任务系统",
+      learning: "学习中心",
+      portfolio: "作品集",
+      visa: "积分材料",
+      opportunities: "机会雷达",
+      reviews: "复盘中心",
+      achievements: "成就",
+      agent: "AI Coach",
+      settings: "设置",
+    },
+    sidebar: { streak: "天" },
+    metrics: {
+      annualProgress: "年度进度",
+      assetScore: "资产分",
+      todayTasks: "今日任务",
+      completion: "今日完成率",
+      plannedTime: "计划时长",
+      focus: "今日焦点",
+    },
+    save: { error: "本地保存", saving: "保存中", saved: "已保存" },
+    taskKind: { main: "主线", maintenance: "维护", asset: "成果", explore: "探索", review: "复盘" },
+    taskStatus: { todo: "未开始", doing: "进行中", done: "已完成", skipped: "已跳过", postponed: "已延期" },
+    materialStatus: { "not-started": "未开始", planned: "已计划", doing: "准备中", done: "已完成", verify: "待确认" },
+    education: { bachelor: "本科", master: "硕士", doctor: "博士" },
+    intensity: { light: "轻量", standard: "标准", intensive: "强化" },
+    today: {
+      main: "今日主线",
+      detailBack: "今日主线",
+      target: "目标",
+      taskText: "任务文本",
+      notes: "备注",
+      exercise: "练习",
+      showAnswer: "查看参考答案",
+      answer: "答案",
+      explanation: "解析",
+      hero: "今天只做能推动三年后结果的事。",
+      day: "第",
+      freezeCards: "冻结卡",
+      totalProgress: "总路径进度",
+      askHermes: "让 Hermes 拆任务",
+      completeTask: "完成任务",
+      pathProgress: "三年路径进度",
+      analyst: "系统分析师",
+      portfolioV1: "作品集 V1",
+      risk: "路径风险提醒",
+    },
+    units: { minutes: "分钟", tasks: "个任务", doneMinutes: "分钟已闭环" },
+    tasks: {
+      title: "任务系统",
+      bannerTitle: "后台已按当前进度安排今日任务",
+      emptySummary: "打开应用时会自动生成约两小时任务，并写入每日总结。",
+      all: "全部",
+    },
+    learning: { title: "学习中心", notePlaceholder: "笔记、错题或下一步" },
+    portfolio: {
+      title: "项目作品集",
+      newProject: "新项目",
+      newProjectTitle: "新的作品集项目",
+      newProjectNextStep: "写出问题定义和目标用户。",
+      problem: "问题定义",
+      users: "目标用户",
+      solution: "解决方案",
+      evidence: "证据/指标",
+      nextStep: "下一步",
+    },
+    visa: {
+      scoreTitle: "高度人才积分测算",
+      high: "80 分以上区间",
+      ready: "达标观察区间",
+      needsWork: "需要补强",
+      education: "学历",
+      age: "年龄",
+      workYears: "工作年限",
+      annualIncome: "目标年收（日元）",
+      noJlpt: "暂无",
+      japaneseDegree: "日本大学学位",
+      advancedCertificate: "高相关证书",
+      researchPatent: "研究/专利/成果",
+      finePrint: "测算用于规划，不替代官方或专业意见。",
+      materials: "材料清单",
+    },
+    opportunity: {
+      title: "机会雷达",
+      bannerTitle: "后台每日自动刷新候选机会",
+      bannerText: "来源优先使用公开招聘 API，并按 AI / Product / Japan / visa 相关性排序。",
+      bannerNote: "不再需要手动新增空公司；状态只用于记录你是否已推进连接。",
+      tier: { core: "核心", target: "目标", watch: "观察" },
+      source: "来源",
+      generated: "后台生成",
+      visaFit: "签证/远程可行性",
+      priority: "优先观察",
+      confirm: "需进一步确认",
+      status: "状态",
+      fit: "匹配度",
+      statusLabels: { research: "调研中", contacted: "已连接", interviewing: "面试中", archived: "归档" },
+    },
+    review: {
+      title: "后台复盘",
+      weekly: "周复盘",
+      monthly: "月复盘",
+      empty: "后台会在读取状态时自动生成自然周/月复盘。",
+      history: "复盘记录",
+      missing: "未填写重点",
+    },
+    achievement: { level: "路径等级", badges: "徽章" },
+    agent: {
+      detected: "Hermes 已检测到",
+      missing: "Hermes 未检测到",
+      outputs: "目标输出",
+      boundaries: "约束边界",
+      generatingDaily: "Hermes 正在补跑今日计划",
+      generateDaily: "立即补跑今日后台计划",
+      running: "Hermes 正在思考",
+      run: "调用 Hermes",
+      errorTitle: "调用失败，已保留手动提示词",
+      notes: "AI 输出记录",
+      empty: "还没有 AI Coach 输出。",
+      fallbackTitle: "PathPilot AI Coach 请求",
+      mode: "模式",
+      currentState: "当前状态",
+      request: "请求",
+      outputLanguage: "输出语言",
+    },
+    settings: {
+      profile: "目标配置",
+      language: "界面语言",
+      pathName: "路径名称",
+      startDate: "起始日期",
+      targetYear: "目标年份",
+      targetRole: "目标岗位",
+      currentPhase: "当前阶段",
+      intensity: "学习强度",
+      japaneseLevel: "日语水平",
+      data: "数据与 Hermes",
+      exportJson: "导出 JSON",
+      importJson: "导入 JSON",
+      reset: "重置示例数据",
+      hermesAvailable: "Hermes Agent 可用",
+      hermesMissing: "Hermes Agent 未连接",
+      hermesHint: "后端会通过 WSL 调用 hermes chat -Q；调用失败时 AI Coach 页会生成可手动复制的提示词。",
+    },
+  },
+  ja: {
+    brandSubtitle: "日本キャリアパス",
+    loading: "3年ロードマップを読み込み中です。",
+    nav: {
+      today: "今日",
+      roadmap: "ロードマップ",
+      tasks: "タスク",
+      learning: "学習",
+      portfolio: "ポートフォリオ",
+      visa: "ポイント・書類",
+      opportunities: "機会レーダー",
+      reviews: "振り返り",
+      achievements: "バッジ",
+      agent: "AI Coach",
+      settings: "設定",
+    },
+    sidebar: { streak: "日連続" },
+    metrics: {
+      annualProgress: "年間進捗",
+      assetScore: "資産スコア",
+      todayTasks: "今日のタスク",
+      completion: "完了率",
+      plannedTime: "予定時間",
+      focus: "今日の焦点",
+    },
+    save: { error: "ローカル保存", saving: "保存中", saved: "保存済み" },
+    taskKind: { main: "主線", maintenance: "維持", asset: "成果", explore: "探索", review: "振り返り" },
+    taskStatus: { todo: "未着手", doing: "進行中", done: "完了", skipped: "スキップ", postponed: "延期" },
+    materialStatus: { "not-started": "未着手", planned: "計画済み", doing: "準備中", done: "完了", verify: "確認待ち" },
+    education: { bachelor: "学士", master: "修士", doctor: "博士" },
+    intensity: { light: "軽め", standard: "標準", intensive: "集中" },
+    today: {
+      main: "今日の主線",
+      detailBack: "今日の主線",
+      target: "目標",
+      taskText: "タスク本文",
+      notes: "メモ",
+      exercise: "練習",
+      showAnswer: "参考回答を見る",
+      answer: "回答",
+      explanation: "解説",
+      hero: "今日は3年後の結果につながることだけを進める。",
+      day: "Day",
+      freezeCards: "フリーズカード",
+      totalProgress: "全体進捗",
+      askHermes: "Hermes に分解させる",
+      completeTask: "タスクを完了",
+      pathProgress: "3年パス進捗",
+      analyst: "システムアナリスト",
+      portfolioV1: "ポートフォリオ V1",
+      risk: "パスのリスク",
+    },
+    units: { minutes: "分", tasks: "件", doneMinutes: "分完了" },
+    tasks: {
+      title: "タスクシステム",
+      bannerTitle: "現在の進捗から今日のタスクを作成済み",
+      emptySummary: "アプリ起動時に約2時間分のタスクとデイリーサマリーを自動作成します。",
+      all: "すべて",
+    },
+    learning: { title: "学習センター", notePlaceholder: "メモ、間違い、次の一手" },
+    portfolio: {
+      title: "プロジェクトポートフォリオ",
+      newProject: "新規プロジェクト",
+      newProjectTitle: "新しいポートフォリオ項目",
+      newProjectNextStep: "課題定義と対象ユーザーを書く。",
+      problem: "課題定義",
+      users: "対象ユーザー",
+      solution: "解決策",
+      evidence: "証拠 / 指標",
+      nextStep: "次の一手",
+    },
+    visa: {
+      scoreTitle: "高度人材ポイント試算",
+      high: "80点以上",
+      ready: "到達圏内",
+      needsWork: "補強が必要",
+      education: "学歴",
+      age: "年齢",
+      workYears: "職歴年数",
+      annualIncome: "目標年収（円）",
+      noJlpt: "なし",
+      japaneseDegree: "日本の大学学位",
+      advancedCertificate: "関連資格",
+      researchPatent: "研究 / 特許 / 実績",
+      finePrint: "計画用の試算であり、公式または専門的な助言ではありません。",
+      materials: "書類リスト",
+    },
+    opportunity: {
+      title: "機会レーダー",
+      bannerTitle: "候補機会を毎日自動更新",
+      bannerText: "公開求人 API を優先し、AI / Product / Japan / visa 関連度で並べます。",
+      bannerNote: "空の会社を手動追加する必要はありません。状態は接点の進捗記録だけに使います。",
+      tier: { core: "核心", target: "目標", watch: "観察" },
+      source: "ソース",
+      generated: "自動生成",
+      visaFit: "ビザ / リモート適合",
+      priority: "優先観察",
+      confirm: "要確認",
+      status: "状態",
+      fit: "適合度",
+      statusLabels: { research: "調査中", contacted: "接続済み", interviewing: "面接中", archived: "アーカイブ" },
+    },
+    review: {
+      title: "バックグラウンド振り返り",
+      weekly: "週次",
+      monthly: "月次",
+      empty: "状態の読み込み時に週次 / 月次レビューを自動生成します。",
+      history: "振り返り履歴",
+      missing: "重点未入力",
+    },
+    achievement: { level: "パスレベル", badges: "バッジ" },
+    agent: {
+      detected: "Hermes を検出済み",
+      missing: "Hermes 未接続",
+      outputs: "目標アウトプット",
+      boundaries: "制約",
+      generatingDaily: "Hermes が今日の計画を再生成中",
+      generateDaily: "今日のバックグラウンド計画を再生成",
+      running: "Hermes が考え中",
+      run: "Hermes を呼び出す",
+      errorTitle: "呼び出しに失敗しました。手動プロンプトを保持しました。",
+      notes: "AI 出力履歴",
+      empty: "AI Coach の出力はまだありません。",
+      fallbackTitle: "PathPilot AI Coach リクエスト",
+      mode: "モード",
+      currentState: "現在の状態",
+      request: "リクエスト",
+      outputLanguage: "出力言語",
+    },
+    settings: {
+      profile: "目標設定",
+      language: "表示言語",
+      pathName: "パス名",
+      startDate: "開始日",
+      targetYear: "目標年",
+      targetRole: "目標ロール",
+      currentPhase: "現在フェーズ",
+      intensity: "学習強度",
+      japaneseLevel: "日本語レベル",
+      data: "データと Hermes",
+      exportJson: "JSON をエクスポート",
+      importJson: "JSON をインポート",
+      reset: "デモデータをリセット",
+      hermesAvailable: "Hermes Agent 利用可能",
+      hermesMissing: "Hermes Agent 未接続",
+      hermesHint: "バックエンドは WSL 経由で hermes chat -Q を呼び出します。失敗時は AI Coach ページに手動プロンプトを残します。",
+    },
+  },
+} as const;
+
+type Copy = (typeof copy)[Language];
+
+const agentModes: Record<Language, Record<AgentMode, { label: string; prompt: string }>> = {
+  en: {
+    breakdown: {
+      label: "Task breakdown",
+      prompt: "Break down the most important lagging goal into executable tasks for this week, and explain which asset each task advances.",
+    },
+    diagnosis: {
+      label: "Progress diagnosis",
+      prompt: "Diagnose whether my current three-year path is lagging, then identify the highest-priority risk and this week's adjustment plan.",
+    },
+    learning: {
+      label: "Learning advice",
+      prompt: "Based on my current learning progress, give one smallest next step each for systems analyst study, Japanese, and portfolio work.",
+    },
+    polish: {
+      label: "Document polish",
+      prompt: "Improve the wording of my portfolio project so it stays truthful, professional, and suitable for Japan AI/product roles.",
+    },
+    interview: {
+      label: "Mock interview",
+      prompt: "Simulate a Product Manager interview at a Japanese AI company, with 6 questions and answer scoring criteria.",
+    },
+    materials: {
+      label: "Material check",
+      prompt: "Check the gaps in my highly skilled professional / engineer visa material list and rank them by priority.",
+    },
+  },
+  zh: {
+    breakdown: {
+      label: "任务拆解",
+      prompt: "请把当前最重要的一个滞后目标拆成本周可执行任务，并说明每个任务推进哪个资产。",
+    },
+    diagnosis: {
+      label: "进度诊断",
+      prompt: "请诊断我当前三年路径是否滞后，指出最高优先级风险和本周调整方案。",
+    },
+    learning: {
+      label: "学习建议",
+      prompt: "请根据当前学习进度，为系统分析师、日语、作品集各给一个最小下一步。",
+    },
+    polish: {
+      label: "文档润色",
+      prompt: "请帮我优化作品集中的项目表达，要求真实、专业、适合日本 AI/产品岗位。",
+    },
+    interview: {
+      label: "面试模拟",
+      prompt: "请模拟一家日本 AI 公司 Product Manager 面试，给我 6 个问题和回答评分标准。",
+    },
+    materials: {
+      label: "材料检查",
+      prompt: "请检查我的高度人才/技人国材料清单缺口，并按优先级排列。",
+    },
+  },
+  ja: {
+    breakdown: {
+      label: "タスク分解",
+      prompt: "現在いちばん遅れている重要目標を、今週実行できるタスクに分解し、各タスクがどの資産を前進させるか説明してください。",
+    },
+    diagnosis: {
+      label: "進捗診断",
+      prompt: "現在の3年パスが遅れているか診断し、最優先リスクと今週の調整案を示してください。",
+    },
+    learning: {
+      label: "学習アドバイス",
+      prompt: "現在の学習進捗にもとづき、システムアナリスト、日本語、ポートフォリオそれぞれに最小の次アクションを1つずつ提案してください。",
+    },
+    polish: {
+      label: "文章改善",
+      prompt: "ポートフォリオのプロジェクト表現を、事実ベースで専門的かつ日本の AI / プロダクト職に適した表現へ改善してください。",
+    },
+    interview: {
+      label: "模擬面接",
+      prompt: "日本の AI 企業の Product Manager 面接を想定し、6つの質問と回答評価基準を出してください。",
+    },
+    materials: {
+      label: "書類チェック",
+      prompt: "高度人材 / 技人国の書類リストの不足を確認し、優先度順に並べてください。",
+    },
+  },
+};
+
+const agentModeOrder: AgentMode[] = ["breakdown", "diagnosis", "learning", "polish", "interview", "materials"];
+
+const outputLanguageName: Record<Language, string> = {
+  en: "English",
+  zh: "Simplified Chinese",
+  ja: "Japanese",
+};
+
+const navItems: Array<{ id: View; label: keyof Copy["nav"]; icon: typeof Home }> = [
+  { id: "today", label: "today", icon: Home },
+  { id: "roadmap", label: "roadmap", icon: Map },
+  { id: "tasks", label: "tasks", icon: CalendarCheck },
+  { id: "learning", label: "learning", icon: BookOpen },
+  { id: "portfolio", label: "portfolio", icon: BriefcaseBusiness },
+  { id: "visa", label: "visa", icon: Landmark },
+  { id: "opportunities", label: "opportunities", icon: Radar },
+  { id: "reviews", label: "reviews", icon: ClipboardList },
+  { id: "achievements", label: "achievements", icon: Trophy },
+  { id: "agent", label: "agent", icon: Bot },
+  { id: "settings", label: "settings", icon: Settings },
+];
+
+function detectSystemLanguage(): Language {
+  const systemLanguages = typeof navigator === "undefined" ? [] : navigator.languages.length ? navigator.languages : [navigator.language];
+  const first = systemLanguages[0]?.toLowerCase() ?? "";
+  if (first.startsWith("zh")) return "zh";
+  if (first.startsWith("ja")) return "ja";
+  return "en";
+}
+
+function readLanguageMode(): LanguageMode {
+  try {
+    const stored = window.localStorage.getItem(languageKey) as LanguageMode | null;
+    if (stored && languageOptions.includes(stored)) return stored;
+  } catch {
+    return "auto";
+  }
+  return "auto";
+}
+
+function resolveLanguage(mode: LanguageMode): Language {
+  return mode === "auto" ? detectSystemLanguage() : mode;
+}
+
+function formatToday(language: Language) {
+  return new Intl.DateTimeFormat(localeByLanguage[language], {
     month: "long",
     day: "numeric",
     weekday: "long",
@@ -124,7 +691,15 @@ function App() {
   const [activeView, setActiveView] = useState<View>("today");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
+  const [languageMode, setLanguageMode] = useState<LanguageMode>(readLanguageMode);
   const loadedRef = useRef(false);
+  const language = resolveLanguage(languageMode);
+  const ui = copy[language];
+
+  useEffect(() => {
+    window.localStorage.setItem(languageKey, languageMode);
+    document.documentElement.lang = language;
+  }, [language, languageMode]);
 
   useEffect(() => {
     async function load() {
@@ -189,7 +764,7 @@ function App() {
     return (
       <main className="loading">
         <Sparkles size={28} />
-        <p>正在装载你的三年路径。</p>
+        <p>{ui.loading}</p>
       </main>
     );
   }
@@ -204,7 +779,7 @@ function App() {
           <div className="brand-mark">P</div>
           <div>
             <strong>PathPilot</strong>
-            <span>日本高度人才路径</span>
+            <span>{ui.brandSubtitle}</span>
           </div>
         </div>
 
@@ -219,7 +794,7 @@ function App() {
                 type="button"
               >
                 <Icon size={18} />
-                <span>{item.label}</span>
+                <span>{ui.nav[item.label]}</span>
               </button>
             );
           })}
@@ -228,35 +803,58 @@ function App() {
         <div className="sidebar-status">
           <span>Lv.{level.level}</span>
           <strong>{level.title}</strong>
-          <small>{state.xp} XP · 连续 {state.streak} 天</small>
+          <small>
+            {state.xp} XP · {state.streak} {ui.sidebar.streak}
+          </small>
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p>{formatToday()}</p>
+            <p>{formatToday(language)}</p>
             <h1>{state.profile.name}</h1>
           </div>
           <div className="topbar-actions">
-            <Metric label="年度进度" value={`${yearProgress(state)}%`} />
-            <Metric label="资产分" value={`${assetScore(state)}`} />
-            <Metric label="今日任务" value={`${todayTasks.filter((task) => task.status === "done").length}/${todayTasks.length}`} />
-            <span className={cx("save-chip", saveState)}>{saveState === "error" ? "本地保存" : saveState === "saving" ? "保存中" : "已保存"}</span>
+            <Metric label={ui.metrics.annualProgress} value={`${yearProgress(state)}%`} />
+            <Metric label={ui.metrics.assetScore} value={`${assetScore(state)}`} />
+            <Metric label={ui.metrics.todayTasks} value={`${todayTasks.filter((task) => task.status === "done").length}/${todayTasks.length}`} />
+            <select
+              aria-label={ui.settings.language}
+              className="language-select"
+              onChange={(event) => setLanguageMode(event.target.value as LanguageMode)}
+              value={languageMode}
+            >
+              {languageOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === "auto" ? `${languageLabels.auto} (${languageLabels[language]})` : languageLabels[option]}
+                </option>
+              ))}
+            </select>
+            <span className={cx("save-chip", saveState)}>{saveState === "error" ? ui.save.error : saveState === "saving" ? ui.save.saving : ui.save.saved}</span>
           </div>
         </header>
 
-        {activeView === "today" && <TodayView state={state} updateState={updateState} openAgent={() => setActiveView("agent")} />}
-        {activeView === "roadmap" && <RoadmapView state={state} updateState={updateState} />}
-        {activeView === "tasks" && <TasksView state={state} updateState={updateState} />}
-        {activeView === "learning" && <LearningView state={state} updateState={updateState} />}
-        {activeView === "portfolio" && <PortfolioView state={state} updateState={updateState} />}
-        {activeView === "visa" && <VisaView state={state} updateState={updateState} />}
-        {activeView === "opportunities" && <OpportunityView state={state} updateState={updateState} />}
-        {activeView === "reviews" && <ReviewView state={state} updateState={updateState} />}
-        {activeView === "achievements" && <AchievementView state={state} />}
-        {activeView === "agent" && <AgentView state={state} updateState={updateState} agentStatus={agentStatus} />}
-        {activeView === "settings" && <SettingsView state={state} updateState={updateState} agentStatus={agentStatus} />}
+        {activeView === "today" && <TodayView state={state} updateState={updateState} openAgent={() => setActiveView("agent")} ui={ui} />}
+        {activeView === "roadmap" && <RoadmapView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "tasks" && <TasksView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "learning" && <LearningView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "portfolio" && <PortfolioView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "visa" && <VisaView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "opportunities" && <OpportunityView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "reviews" && <ReviewView state={state} updateState={updateState} ui={ui} />}
+        {activeView === "achievements" && <AchievementView state={state} ui={ui} />}
+        {activeView === "agent" && <AgentView state={state} updateState={updateState} agentStatus={agentStatus} language={language} ui={ui} />}
+        {activeView === "settings" && (
+          <SettingsView
+            agentStatus={agentStatus}
+            languageMode={languageMode}
+            setLanguageMode={setLanguageMode}
+            state={state}
+            ui={ui}
+            updateState={updateState}
+          />
+        )}
       </main>
     </div>
   );
@@ -287,17 +885,17 @@ function MarkdownBlock({ text }: { text: string }) {
   );
 }
 
-function taskDetailMarkdown(task: Task) {
+function taskDetailMarkdown(task: Task, ui: Copy) {
   return [
-    `## 目标\n${task.impact}`,
-    task.knowledgePoint ? `## 任务文本\n${task.knowledgePoint}` : undefined,
-    task.notes && !task.questions?.length ? `## 备注\n${task.notes}` : undefined,
+    `## ${ui.today.target}\n${task.impact}`,
+    task.knowledgePoint ? `## ${ui.today.taskText}\n${task.knowledgePoint}` : undefined,
+    task.notes && !task.questions?.length ? `## ${ui.today.notes}\n${task.notes}` : undefined,
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-function TaskQuestionList({ task }: { task: Task }) {
+function TaskQuestionList({ task, ui }: { task: Task; ui: Copy }) {
   const questions = task.questions?.length ? task.questions : task.question ? [task.question] : [];
   if (questions.length === 0) return null;
 
@@ -305,11 +903,13 @@ function TaskQuestionList({ task }: { task: Task }) {
     <div className="task-exercises">
       {questions.map((question, index) => (
         <article key={question.id}>
-          <span>练习 {index + 1}</span>
+          <span>
+            {ui.today.exercise} {index + 1}
+          </span>
           <MarkdownBlock text={question.prompt} />
           <details>
-            <summary>查看参考答案</summary>
-            <MarkdownBlock text={`**答案**\n\n${question.answer}\n\n**解析**\n\n${question.explanation}`} />
+            <summary>{ui.today.showAnswer}</summary>
+            <MarkdownBlock text={`**${ui.today.answer}**\n\n${question.answer}\n\n**${ui.today.explanation}**\n\n${question.explanation}`} />
           </details>
         </article>
       ))}
@@ -321,34 +921,36 @@ function TaskDetailView({
   task,
   onBack,
   setTaskStatus,
+  ui,
 }: {
   task: Task;
   onBack: () => void;
   setTaskStatus: (taskId: string, status: TaskStatus) => void;
+  ui: Copy;
 }) {
   return (
     <div className="task-detail-view">
       <button className="back-button" onClick={onBack} type="button">
         <ArrowLeft size={16} />
-        今日主线
+        {ui.today.detailBack}
       </button>
       <div className="task-detail-head">
         <div>
           <span>
-            {taskKindLabel[task.kind]} · {task.minutes} 分钟 · +{task.xp} XP
+            {ui.taskKind[task.kind]} · {task.minutes} {ui.units.minutes} · +{task.xp} XP
           </span>
           <h2>{task.title}</h2>
         </div>
         <select value={task.status} onChange={(event) => setTaskStatus(task.id, event.target.value as TaskStatus)}>
-          {Object.entries(taskStatusLabel).map(([value, label]) => (
+          {Object.entries(ui.taskStatus).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
           ))}
         </select>
       </div>
-      <MarkdownBlock text={taskDetailMarkdown(task)} />
-      <TaskQuestionList task={task} />
+      <MarkdownBlock text={taskDetailMarkdown(task, ui)} />
+      <TaskQuestionList task={task} ui={ui} />
     </div>
   );
 }
@@ -369,10 +971,12 @@ function TodayView({
   state,
   updateState,
   openAgent,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
   openAgent: () => void;
+  ui: Copy;
 }) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const todayTasks = state.tasks.filter((task) => task.dueDate === todayKey());
@@ -437,30 +1041,30 @@ function TodayView({
       <section className="hero-panel">
         <div>
           <span className="eyebrow">{state.profile.currentPhase}</span>
-          <h2>今天只做能推动三年后结果的事。</h2>
+          <h2>{ui.today.hero}</h2>
           <p>
-            第 {daysBetween(state.profile.startDate)} 天 · Lv.{level.level} {level.title} · 冻结卡 {state.freezeCards} 张
+            {ui.today.day} {daysBetween(state.profile.startDate)} · Lv.{level.level} {level.title} · {ui.today.freezeCards} {state.freezeCards}
           </p>
         </div>
         <div className="hero-progress">
           <strong>{totalProgress(state)}%</strong>
-          <span>总路径进度</span>
+          <span>{ui.today.totalProgress}</span>
           <ProgressBar value={totalProgress(state)} />
         </div>
       </section>
 
       <section className="panel main-panel">
         {selectedTask ? (
-          <TaskDetailView task={selectedTask} onBack={() => setSelectedTaskId(null)} setTaskStatus={setTaskStatus} />
+          <TaskDetailView task={selectedTask} onBack={() => setSelectedTaskId(null)} setTaskStatus={setTaskStatus} ui={ui} />
         ) : (
           <>
         <SectionTitle
           kicker="Today"
-          title="今日主线"
+          title={ui.today.main}
           action={
             <button className="ghost-button" onClick={openAgent} type="button">
               <Bot size={16} />
-              让 Hermes 拆任务
+              {ui.today.askHermes}
             </button>
           }
         />
@@ -469,7 +1073,7 @@ function TodayView({
           {todayTasks.map((task) => (
             <article className={cx("task-row", task.status === "done" && "completed")} key={task.id}>
               <button
-                aria-label="完成任务"
+                aria-label={ui.today.completeTask}
                 className="check-button"
                 onClick={() => setTaskStatus(task.id, task.status === "done" ? "todo" : "done")}
                 type="button"
@@ -480,14 +1084,14 @@ function TodayView({
                 <span>
                 <strong>{task.title}</strong>
                 <span>
-                  {taskKindLabel[task.kind]} · {task.minutes} 分钟 · +{task.xp} XP
+                  {ui.taskKind[task.kind]} · {task.minutes} {ui.units.minutes} · +{task.xp} XP
                 </span>
                 <small>{task.impact}</small>
                 </span>
                 <ChevronRight size={18} />
               </button>
               <select value={task.status} onChange={(event) => setTaskStatus(task.id, event.target.value as TaskStatus)}>
-                {Object.entries(taskStatusLabel).map(([value, label]) => (
+                {Object.entries(ui.taskStatus).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -501,17 +1105,17 @@ function TodayView({
       </section>
 
       <section className="panel">
-        <SectionTitle kicker="Progress" title="三年路径进度" />
+        <SectionTitle kicker="Progress" title={ui.today.pathProgress} />
         <div className="progress-list">
           <ProgressItem label="Year 1" value={yearProgress(state)} />
-          <ProgressItem label="系统分析师" value={state.roadmap[0].milestones[1].progress} />
-          <ProgressItem label="作品集 V1" value={state.roadmap[0].milestones[4].progress} />
-          <ProgressItem label="资产分" value={assetScore(state)} />
+          <ProgressItem label={ui.today.analyst} value={state.roadmap[0].milestones[1].progress} />
+          <ProgressItem label={ui.today.portfolioV1} value={state.roadmap[0].milestones[4].progress} />
+          <ProgressItem label={ui.metrics.assetScore} value={assetScore(state)} />
         </div>
       </section>
 
       <section className="panel">
-        <SectionTitle kicker="Risk" title="路径风险提醒" />
+        <SectionTitle kicker="Risk" title={ui.today.risk} />
         <div className="risk-list">
           {risks.map((risk) => (
             <div key={risk}>
@@ -523,9 +1127,9 @@ function TodayView({
       </section>
 
       <section className="panel strip-panel">
-        <Metric label="今日完成率" value={`${done}/${todayTasks.length}`} />
-        <Metric label="计划时长" value={`${todaySummary?.plannedMinutes ?? todayTasks.reduce((sum, task) => sum + task.minutes, 0)} 分钟`} />
-        <Metric label="今日焦点" value={todaySummary?.focus ?? "作品集 V1"} />
+        <Metric label={ui.metrics.completion} value={`${done}/${todayTasks.length}`} />
+        <Metric label={ui.metrics.plannedTime} value={`${todaySummary?.plannedMinutes ?? todayTasks.reduce((sum, task) => sum + task.minutes, 0)} ${ui.units.minutes}`} />
+        <Metric label={ui.metrics.focus} value={todaySummary?.focus ?? ui.today.portfolioV1} />
       </section>
     </div>
   );
@@ -546,9 +1150,11 @@ function ProgressItem({ label, value }: { label: string; value: number }) {
 function RoadmapView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   function updateMilestone(yearId: string, milestoneId: string, patch: Partial<AppState["roadmap"][number]["milestones"][number]>) {
     updateState((current) => ({
@@ -568,7 +1174,7 @@ function RoadmapView({
 
   return (
     <section className="panel full-panel">
-      <SectionTitle kicker="Roadmap" title="三年路线图" />
+      <SectionTitle kicker="Roadmap" title={ui.nav.roadmap} />
       <div className="roadmap">
         {state.roadmap.map((year) => (
           <article className="year-block" key={year.id}>
@@ -619,9 +1225,11 @@ function RoadmapView({
 function TasksView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   const [filter, setFilter] = useState<"all" | TaskStatus>("all");
   const tasks = state.tasks.filter((task) => filter === "all" || task.status === filter);
@@ -638,20 +1246,20 @@ function TasksView({
 
   return (
     <section className="panel full-panel">
-      <SectionTitle kicker="Tasks" title="任务系统" />
+      <SectionTitle kicker="Tasks" title={ui.tasks.title} />
       <div className="automation-banner">
         <div>
-          <strong>后台已按当前进度安排今日任务</strong>
+          <strong>{ui.tasks.bannerTitle}</strong>
           <span>
-            今日 {todayTasks.length} 个任务 · {plannedMinutes} 分钟 · {todaySummary?.completedMinutes ?? 0} 分钟已闭环
+            {todayTasks.length} {ui.units.tasks} · {plannedMinutes} {ui.units.minutes} · {todaySummary?.completedMinutes ?? 0} {ui.units.doneMinutes}
           </span>
         </div>
-        <small>{todaySummary?.nextStep ?? "打开应用时会自动生成约两小时任务，并写入每日总结。"}</small>
+        <small>{todaySummary?.nextStep ?? ui.tasks.emptySummary}</small>
       </div>
       <div className="segmented">
         {(["all", "todo", "doing", "done", "skipped", "postponed"] as Array<"all" | TaskStatus>).map((item) => (
           <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)} type="button">
-            {item === "all" ? "全部" : taskStatusLabel[item]}
+            {item === "all" ? ui.tasks.all : ui.taskStatus[item]}
           </button>
         ))}
       </div>
@@ -661,12 +1269,12 @@ function TasksView({
             <div>
               <strong>{task.title}</strong>
               <small>
-                {task.dueDate} · {task.track} · {task.minutes} 分钟 · +{task.xp} XP
+                {task.dueDate} · {task.track} · {task.minutes} {ui.units.minutes} · +{task.xp} XP
               </small>
             </div>
-            <span className="task-kind-chip">{taskKindLabel[task.kind]}</span>
+            <span className="task-kind-chip">{ui.taskKind[task.kind]}</span>
             <select value={task.status} onChange={(event) => patchTask(task.id, { status: event.target.value as TaskStatus })}>
-              {Object.entries(taskStatusLabel).map(([value, label]) => (
+              {Object.entries(ui.taskStatus).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -685,9 +1293,11 @@ function TasksView({
 function LearningView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   function updateTopic(trackId: string, topicId: string, patch: { mastery?: Mastery; notes?: string }) {
     updateState((current) => ({
@@ -706,7 +1316,7 @@ function LearningView({
 
   return (
     <section className="panel full-panel">
-      <SectionTitle kicker="Learning" title="学习中心" />
+      <SectionTitle kicker="Learning" title={ui.learning.title} />
       <div className="learning-grid">
         {state.learning.map((track) => (
           <article className="learning-track" key={track.id}>
@@ -724,7 +1334,7 @@ function LearningView({
                   <div>
                     <strong>{topic.title}</strong>
                     <span>
-                      {topic.kind} · {topic.minutes} 分钟
+                      {topic.kind} · {topic.minutes} {ui.units.minutes}
                     </span>
                   </div>
                   {topic.objective && <p className="topic-objective">{topic.objective}</p>}
@@ -761,7 +1371,7 @@ function LearningView({
                   </div>
                   <textarea
                     onChange={(event) => updateTopic(track.id, topic.id, { notes: event.target.value })}
-                    placeholder="笔记、错题或下一步"
+                    placeholder={ui.learning.notePlaceholder}
                     value={topic.notes}
                   />
                 </div>
@@ -777,9 +1387,11 @@ function LearningView({
 function PortfolioView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   function patchProject(projectId: string, patch: Partial<PortfolioProject>) {
     updateState((current) => ({
@@ -795,14 +1407,14 @@ function PortfolioView({
         ...current.portfolio,
         {
           id: createId("project"),
-          title: "新的作品集项目",
+          title: ui.portfolio.newProjectTitle,
           stage: "Draft",
           progress: 0,
           problem: "",
           users: "",
           solution: "",
           evidence: "",
-          nextStep: "写出问题定义和目标用户。",
+          nextStep: ui.portfolio.newProjectNextStep,
         },
       ],
     }));
@@ -812,11 +1424,11 @@ function PortfolioView({
     <section className="panel full-panel">
       <SectionTitle
         kicker="Portfolio"
-        title="项目作品集"
+        title={ui.portfolio.title}
         action={
           <button className="primary-button" onClick={addProject} type="button">
             <Plus size={16} />
-            新项目
+            {ui.portfolio.newProject}
           </button>
         }
       />
@@ -836,12 +1448,12 @@ function PortfolioView({
               value={project.progress}
             />
             <div className="case-grid">
-              <TextBlock label="问题定义" value={project.problem} onChange={(value) => patchProject(project.id, { problem: value })} />
-              <TextBlock label="目标用户" value={project.users} onChange={(value) => patchProject(project.id, { users: value })} />
-              <TextBlock label="解决方案" value={project.solution} onChange={(value) => patchProject(project.id, { solution: value })} />
-              <TextBlock label="证据/指标" value={project.evidence} onChange={(value) => patchProject(project.id, { evidence: value })} />
+              <TextBlock label={ui.portfolio.problem} value={project.problem} onChange={(value) => patchProject(project.id, { problem: value })} />
+              <TextBlock label={ui.portfolio.users} value={project.users} onChange={(value) => patchProject(project.id, { users: value })} />
+              <TextBlock label={ui.portfolio.solution} value={project.solution} onChange={(value) => patchProject(project.id, { solution: value })} />
+              <TextBlock label={ui.portfolio.evidence} value={project.evidence} onChange={(value) => patchProject(project.id, { evidence: value })} />
             </div>
-            <TextBlock label="下一步" value={project.nextStep} onChange={(value) => patchProject(project.id, { nextStep: value })} />
+            <TextBlock label={ui.portfolio.nextStep} value={project.nextStep} onChange={(value) => patchProject(project.id, { nextStep: value })} />
           </article>
         ))}
       </div>
@@ -861,9 +1473,11 @@ function TextBlock({ label, value, onChange }: { label: string; value: string; o
 function VisaView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   const score = calculateVisaPoints(state.visa.inputs);
 
@@ -890,30 +1504,30 @@ function VisaView({
   return (
     <div className="view-grid visa-grid">
       <section className="panel">
-        <SectionTitle kicker="Score" title="高度人才积分测算" />
+        <SectionTitle kicker="Score" title={ui.visa.scoreTitle} />
         <div className="score-meter">
           <strong>{score}</strong>
-          <span>{score >= 80 ? "80 分以上区间" : score >= 70 ? "达标观察区间" : "需要补强"}</span>
+          <span>{score >= 80 ? ui.visa.high : score >= 70 ? ui.visa.ready : ui.visa.needsWork}</span>
         </div>
         <div className="form-grid">
           <label>
-            学历
+            {ui.visa.education}
             <select value={state.visa.inputs.education} onChange={(event) => patchInputs({ education: event.target.value as AppState["visa"]["inputs"]["education"] })}>
-              <option value="bachelor">本科</option>
-              <option value="master">硕士</option>
-              <option value="doctor">博士</option>
+              <option value="bachelor">{ui.education.bachelor}</option>
+              <option value="master">{ui.education.master}</option>
+              <option value="doctor">{ui.education.doctor}</option>
             </select>
           </label>
           <label>
-            年龄
+            {ui.visa.age}
             <input type="number" value={state.visa.inputs.age} onChange={(event) => patchInputs({ age: Number(event.target.value) })} />
           </label>
           <label>
-            工作年限
+            {ui.visa.workYears}
             <input type="number" value={state.visa.inputs.workYears} onChange={(event) => patchInputs({ workYears: Number(event.target.value) })} />
           </label>
           <label>
-            目标年收（日元）
+            {ui.visa.annualIncome}
             <input
               step="500000"
               type="number"
@@ -924,7 +1538,7 @@ function VisaView({
           <label>
             JLPT
             <select value={state.visa.inputs.jlpt} onChange={(event) => patchInputs({ jlpt: event.target.value as AppState["visa"]["inputs"]["jlpt"] })}>
-              <option value="none">暂无</option>
+              <option value="none">{ui.visa.noJlpt}</option>
               <option value="n2">N2</option>
               <option value="n1">N1</option>
             </select>
@@ -937,7 +1551,7 @@ function VisaView({
               onChange={(event) => patchInputs({ hasJapaneseDegree: event.target.checked })}
               type="checkbox"
             />
-            日本大学学位
+            {ui.visa.japaneseDegree}
           </label>
           <label>
             <input
@@ -945,7 +1559,7 @@ function VisaView({
               onChange={(event) => patchInputs({ hasAdvancedCertificate: event.target.checked })}
               type="checkbox"
             />
-            高相关证书
+            {ui.visa.advancedCertificate}
           </label>
           <label>
             <input
@@ -953,14 +1567,14 @@ function VisaView({
               onChange={(event) => patchInputs({ hasResearchOrPatent: event.target.checked })}
               type="checkbox"
             />
-            研究/专利/成果
+            {ui.visa.researchPatent}
           </label>
         </div>
-        <p className="fine-print">测算用于规划，不替代官方或专业意见。</p>
+        <p className="fine-print">{ui.visa.finePrint}</p>
       </section>
 
       <section className="panel">
-        <SectionTitle kicker="Materials" title="材料清单" />
+        <SectionTitle kicker="Materials" title={ui.visa.materials} />
         <div className="material-list">
           {state.visa.materials.map((material) => (
             <article className="material" key={material.id}>
@@ -969,7 +1583,7 @@ function VisaView({
                 <span>{material.group}</span>
               </div>
               <select value={material.status} onChange={(event) => patchMaterial(material.id, { status: event.target.value as MaterialStatus })}>
-                {Object.entries(materialStatusLabel).map(([value, label]) => (
+                {Object.entries(ui.materialStatus).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
@@ -986,9 +1600,11 @@ function VisaView({
 function OpportunityView({
   state,
   updateState,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   function patchOpportunity(id: string, patch: Partial<Opportunity>) {
     updateState((current) => ({
@@ -999,13 +1615,13 @@ function OpportunityView({
 
   return (
     <section className="panel full-panel">
-      <SectionTitle kicker="Radar" title="机会雷达" />
+      <SectionTitle kicker="Radar" title={ui.opportunity.title} />
       <div className="automation-banner">
         <div>
-          <strong>后台每日自动刷新候选机会</strong>
-          <span>来源优先使用公开招聘 API，并按 AI / Product / Japan / visa 相关性排序。</span>
+          <strong>{ui.opportunity.bannerTitle}</strong>
+          <span>{ui.opportunity.bannerText}</span>
         </div>
-        <small>不再需要手动新增空公司；状态只用于记录你是否已推进连接。</small>
+        <small>{ui.opportunity.bannerNote}</small>
       </div>
       <div className="opportunity-list">
         {state.opportunities.map((item) => (
@@ -1015,29 +1631,29 @@ function OpportunityView({
                 <strong>{item.company}</strong>
                 <span>{item.role}</span>
               </div>
-              <span className="task-kind-chip">{item.tier === "core" ? "核心" : item.tier === "target" ? "目标" : "观察"}</span>
+              <span className="task-kind-chip">{ui.opportunity.tier[item.tier]}</span>
               <strong>{item.fit}%</strong>
             </div>
             <div className="form-grid compact">
               <label>
-                来源
-                <span className="readonly-field">{item.contact || "后台生成"}</span>
+                {ui.opportunity.source}
+                <span className="readonly-field">{item.contact || ui.opportunity.generated}</span>
               </label>
               <label>
-                签证/远程可行性
-                <span className="readonly-field">{item.visaFit ? "优先观察" : "需进一步确认"}</span>
+                {ui.opportunity.visaFit}
+                <span className="readonly-field">{item.visaFit ? ui.opportunity.priority : ui.opportunity.confirm}</span>
               </label>
               <label>
-                状态
+                {ui.opportunity.status}
                 <select value={item.status} onChange={(event) => patchOpportunity(item.id, { status: event.target.value as Opportunity["status"] })}>
-                  <option value="research">调研中</option>
-                  <option value="contacted">已连接</option>
-                  <option value="interviewing">面试中</option>
-                  <option value="archived">归档</option>
+                  <option value="research">{ui.opportunity.statusLabels.research}</option>
+                  <option value="contacted">{ui.opportunity.statusLabels.contacted}</option>
+                  <option value="interviewing">{ui.opportunity.statusLabels.interviewing}</option>
+                  <option value="archived">{ui.opportunity.statusLabels.archived}</option>
                 </select>
               </label>
               <label>
-                匹配度
+                {ui.opportunity.fit}
                 <span className="readonly-field">{item.fit}%</span>
               </label>
             </div>
@@ -1051,9 +1667,11 @@ function OpportunityView({
 
 function ReviewView({
   state,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
+  ui: Copy;
 }) {
   const [type, setType] = useState<Review["type"]>("weekly");
   const currentReview = state.reviews.find((review) => review.type === type);
@@ -1061,13 +1679,13 @@ function ReviewView({
   return (
     <div className="view-grid review-grid">
       <section className="panel">
-        <SectionTitle kicker="Review" title="后台复盘" />
+        <SectionTitle kicker="Review" title={ui.review.title} />
         <div className="segmented">
           <button className={type === "weekly" ? "active" : ""} onClick={() => setType("weekly")} type="button">
-            周复盘
+            {ui.review.weekly}
           </button>
           <button className={type === "monthly" ? "active" : ""} onClick={() => setType("monthly")} type="button">
-            月复盘
+            {ui.review.monthly}
           </button>
         </div>
         {currentReview ? (
@@ -1079,18 +1697,18 @@ function ReviewView({
             <p>{currentReview.adjustment}</p>
           </div>
         ) : (
-          <p className="empty">后台会在读取状态时自动生成自然周/月复盘。</p>
+          <p className="empty">{ui.review.empty}</p>
         )}
       </section>
       <section className="panel">
-        <SectionTitle kicker="History" title="复盘记录" />
+        <SectionTitle kicker="History" title={ui.review.history} />
         <div className="review-list">
           {state.reviews.map((review) => (
             <article key={review.id}>
               <span>
-                {review.type === "weekly" ? "周复盘" : "月复盘"} · {review.date}
+                {review.type === "weekly" ? ui.review.weekly : ui.review.monthly} · {review.date}
               </span>
-              <strong>{review.biggestMove || "未填写重点"}</strong>
+              <strong>{review.biggestMove || ui.review.missing}</strong>
               <p>{review.adjustment}</p>
             </article>
           ))}
@@ -1100,22 +1718,24 @@ function ReviewView({
   );
 }
 
-function AchievementView({ state }: { state: AppState }) {
+function AchievementView({ state, ui }: { state: AppState; ui: Copy }) {
   const level = levelFromState(state);
 
   return (
     <div className="view-grid achievement-grid">
       <section className="panel">
-        <SectionTitle kicker="Level" title="路径等级" />
+        <SectionTitle kicker="Level" title={ui.achievement.level} />
         <div className="level-display">
           <strong>Lv.{level.level}</strong>
           <span>{level.title}</span>
-          <p>{state.xp} XP · 连续 {state.streak} 天 · 冻结卡 {state.freezeCards} 张</p>
+          <p>
+            {state.xp} XP · {state.streak} {ui.sidebar.streak} · {ui.today.freezeCards} {state.freezeCards}
+          </p>
         </div>
         <ProgressBar value={Math.min(100, (state.xp % 1000) / 10)} />
       </section>
       <section className="panel">
-        <SectionTitle kicker="Badges" title="徽章" />
+        <SectionTitle kicker="Badges" title={ui.achievement.badges} />
         <div className="badge-grid">
           {state.badges.map((badge) => (
             <article className={cx("badge", badge.unlocked && "unlocked")} key={badge.id}>
@@ -1134,20 +1754,32 @@ function AgentView({
   state,
   updateState,
   agentStatus,
+  language,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
   agentStatus: AgentStatus | null;
+  language: Language;
+  ui: Copy;
 }) {
-  const [mode, setMode] = useState("进度诊断");
-  const [prompt, setPrompt] = useState(modePrompts["进度诊断"]);
+  const [mode, setMode] = useState<AgentMode>("diagnosis");
+  const [prompt, setPrompt] = useState(agentModes[language].diagnosis.prompt);
   const [running, setRunning] = useState(false);
   const [generatingDaily, setGeneratingDaily] = useState(false);
   const [error, setError] = useState("");
+  const previousLanguageRef = useRef(language);
+  const modeCopy = agentModes[language][mode];
 
-  function selectMode(nextMode: string) {
+  useEffect(() => {
+    const previousPrompt = agentModes[previousLanguageRef.current][mode].prompt;
+    if (prompt === previousPrompt) setPrompt(agentModes[language][mode].prompt);
+    previousLanguageRef.current = language;
+  }, [language, mode, prompt]);
+
+  function selectMode(nextMode: AgentMode) {
     setMode(nextMode);
-    setPrompt(modePrompts[nextMode]);
+    setPrompt(agentModes[language][nextMode].prompt);
   }
 
   async function runAgent() {
@@ -1157,7 +1789,7 @@ function AgentView({
       const response = await fetch("/api/agent/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, prompt, state }),
+        body: JSON.stringify({ language, mode: modeCopy.label, prompt, state }),
       });
       const data = (await response.json()) as { ok: boolean; response?: string; error?: string };
       if (!response.ok || !data.ok) throw new Error(data.error || "Hermes request failed");
@@ -1167,7 +1799,7 @@ function AgentView({
           {
             id: createId("agent"),
             date: todayKey(),
-            mode,
+            mode: modeCopy.label,
             prompt,
             response: data.response || "",
           },
@@ -1185,7 +1817,11 @@ function AgentView({
     setGeneratingDaily(true);
     setError("");
     try {
-      const response = await fetch("/api/agent/generate-daily-lessons", { method: "POST" });
+      const response = await fetch("/api/agent/generate-daily-lessons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language }),
+      });
       const data = (await response.json()) as { ok: boolean; state?: AppState; response?: string; error?: string };
       if (!response.ok || !data.ok || !data.state) throw new Error(data.error || "Hermes lesson generation failed");
       updateState(() => data.state!);
@@ -1199,9 +1835,10 @@ function AgentView({
   const fallbackPrompt = useMemo(
     () =>
       [
-        "PathPilot AI Coach 请求",
-        `模式：${mode}`,
-        "当前状态：",
+        ui.agent.fallbackTitle,
+        `${ui.agent.mode}: ${modeCopy.label}`,
+        `${ui.agent.outputLanguage}: ${outputLanguageName[language]}`,
+        `${ui.agent.currentState}:`,
         JSON.stringify(
           {
             profile: state.profile,
@@ -1215,10 +1852,10 @@ function AgentView({
           null,
           2,
         ),
-        "请求：",
+        `${ui.agent.request}:`,
         prompt,
       ].join("\n\n"),
-    [mode, prompt, state],
+    [language, modeCopy.label, prompt, state, ui],
   );
 
   return (
@@ -1228,7 +1865,7 @@ function AgentView({
         <div className="agent-status">
           <span className={agentStatus?.available ? "dot on" : "dot"} />
           <div>
-            <strong>{agentStatus?.available ? "Hermes 已检测到" : "Hermes 未检测到"}</strong>
+            <strong>{agentStatus?.available ? ui.agent.detected : ui.agent.missing}</strong>
             <small>{agentStatus?.mode || "checking"}</small>
           </div>
         </div>
@@ -1239,46 +1876,46 @@ function AgentView({
         </div>
         <div className="agent-rule-grid">
           <div>
-            <strong>目标输出</strong>
+            <strong>{ui.agent.outputs}</strong>
             {state.agentDesign.outputs.map((item) => (
               <span key={item}>{item}</span>
             ))}
           </div>
           <div>
-            <strong>约束边界</strong>
+            <strong>{ui.agent.boundaries}</strong>
             {state.agentDesign.safety.map((item) => (
               <span key={item}>{item}</span>
             ))}
           </div>
         </div>
         <div className="segmented wrap">
-          {Object.keys(modePrompts).map((item) => (
+          {agentModeOrder.map((item) => (
             <button className={mode === item ? "active" : ""} key={item} onClick={() => selectMode(item)} type="button">
-              {item}
+              {agentModes[language][item].label}
             </button>
           ))}
         </div>
         <textarea className="agent-prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         <button className="ghost-button wide" disabled={generatingDaily} onClick={generateDailyLessons} type="button">
           {generatingDaily ? <RefreshCw className="spin" size={16} /> : <BookOpen size={16} />}
-          {generatingDaily ? "Hermes 正在补跑今日计划" : "立即补跑今日后台计划"}
+          {generatingDaily ? ui.agent.generatingDaily : ui.agent.generateDaily}
         </button>
         <button className="primary-button wide" disabled={running} onClick={runAgent} type="button">
           {running ? <RefreshCw className="spin" size={16} /> : <Sparkles size={16} />}
-          {running ? "Hermes 正在思考" : "调用 Hermes"}
+          {running ? ui.agent.running : ui.agent.run}
         </button>
         {error && (
           <div className="error-box">
-            <strong>调用失败，已保留手动提示词</strong>
+            <strong>{ui.agent.errorTitle}</strong>
             <p>{error}</p>
             <textarea readOnly value={fallbackPrompt} />
           </div>
         )}
       </section>
       <section className="panel">
-        <SectionTitle kicker="Notes" title="AI 输出记录" />
+        <SectionTitle kicker="Notes" title={ui.agent.notes} />
         <div className="agent-notes">
-          {state.agentNotes.length === 0 && <p className="empty">还没有 AI Coach 输出。</p>}
+          {state.agentNotes.length === 0 && <p className="empty">{ui.agent.empty}</p>}
           {state.agentNotes.map((note) => (
             <article key={note.id}>
               <span>
@@ -1298,10 +1935,16 @@ function SettingsView({
   state,
   updateState,
   agentStatus,
+  languageMode,
+  setLanguageMode,
+  ui,
 }: {
   state: AppState;
   updateState: (next: (current: AppState) => AppState) => void;
   agentStatus: AgentStatus | null;
+  languageMode: LanguageMode;
+  setLanguageMode: (languageMode: LanguageMode) => void;
+  ui: Copy;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1340,71 +1983,81 @@ function SettingsView({
   return (
     <div className="view-grid settings-grid">
       <section className="panel">
-        <SectionTitle kicker="Profile" title="目标配置" />
+        <SectionTitle kicker="Profile" title={ui.settings.profile} />
         <div className="form-grid">
           <label>
-            路径名称
+            {ui.settings.language}
+            <select value={languageMode} onChange={(event) => setLanguageMode(event.target.value as LanguageMode)}>
+              {languageOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === "auto" ? `${languageLabels.auto} (${languageLabels[resolveLanguage(option)]})` : languageLabels[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {ui.settings.pathName}
             <input value={state.profile.name} onChange={(event) => patchProfile({ name: event.target.value })} />
           </label>
           <label>
-            起始日期
+            {ui.settings.startDate}
             <input type="date" value={state.profile.startDate} onChange={(event) => patchProfile({ startDate: event.target.value })} />
           </label>
           <label>
-            目标年份
+            {ui.settings.targetYear}
             <input value={state.profile.targetYear} onChange={(event) => patchProfile({ targetYear: event.target.value })} />
           </label>
           <label>
-            目标岗位
+            {ui.settings.targetRole}
             <input value={state.profile.targetRole} onChange={(event) => patchProfile({ targetRole: event.target.value })} />
           </label>
           <label>
-            当前阶段
+            {ui.settings.currentPhase}
             <input value={state.profile.currentPhase} onChange={(event) => patchProfile({ currentPhase: event.target.value })} />
           </label>
           <label>
-            学习强度
+            {ui.settings.intensity}
             <select value={state.profile.intensity} onChange={(event) => patchProfile({ intensity: event.target.value as Intensity })}>
-              <option value="light">轻量</option>
-              <option value="standard">标准</option>
-              <option value="intensive">强化</option>
+              <option value="light">{ui.intensity.light}</option>
+              <option value="standard">{ui.intensity.standard}</option>
+              <option value="intensive">{ui.intensity.intensive}</option>
             </select>
           </label>
           <label>
-            日语水平
+            {ui.settings.japaneseLevel}
             <input value={state.profile.japaneseLevel} onChange={(event) => patchProfile({ japaneseLevel: event.target.value })} />
           </label>
           <label>
-            学历
+            {ui.visa.education}
             <select value={state.profile.education} onChange={(event) => patchProfile({ education: event.target.value as AppState["profile"]["education"] })}>
-              <option value="bachelor">本科</option>
-              <option value="master">硕士</option>
-              <option value="doctor">博士</option>
+              <option value="bachelor">{ui.education.bachelor}</option>
+              <option value="master">{ui.education.master}</option>
+              <option value="doctor">{ui.education.doctor}</option>
             </select>
           </label>
           <label>
-            年龄
+            {ui.visa.age}
             <input type="number" value={state.profile.age} onChange={(event) => patchProfile({ age: Number(event.target.value) })} />
           </label>
           <label>
-            工作年限
+            {ui.visa.workYears}
             <input type="number" value={state.profile.workYears} onChange={(event) => patchProfile({ workYears: Number(event.target.value) })} />
           </label>
         </div>
       </section>
       <section className="panel">
-        <SectionTitle kicker="Data" title="数据与 Hermes" />
+        <SectionTitle kicker="Data" title={ui.settings.data} />
         <div className="settings-actions">
           <button className="ghost-button" onClick={exportState} type="button">
             <Download size={16} />
-            导出 JSON
+            {ui.settings.exportJson}
           </button>
           <button className="ghost-button" onClick={() => fileInputRef.current?.click()} type="button">
             <Upload size={16} />
-            导入 JSON
+            {ui.settings.importJson}
           </button>
           <button className="danger-button" onClick={() => updateState(() => createDefaultState())} type="button">
-            重置示例数据
+            {ui.settings.reset}
           </button>
           <input
             accept="application/json"
@@ -1418,9 +2071,9 @@ function SettingsView({
           />
         </div>
         <div className="hermes-box">
-          <strong>{agentStatus?.available ? "Hermes Agent 可用" : "Hermes Agent 未连接"}</strong>
+          <strong>{agentStatus?.available ? ui.settings.hermesAvailable : ui.settings.hermesMissing}</strong>
           <span>{agentStatus?.launchCmd}</span>
-          <small>后端会通过 WSL 调用 hermes chat -Q；调用失败时 AI Coach 页会生成可手动复制的提示词。</small>
+          <small>{ui.settings.hermesHint}</small>
         </div>
       </section>
     </div>

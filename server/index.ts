@@ -46,6 +46,18 @@ const automationModes = {
   monthlyReview: "自然月复盘自动生成",
 };
 
+type Language = "en" | "zh" | "ja";
+
+const outputLanguageInstruction: Record<Language, string> = {
+  en: "Output language: English. Keep all generated user-facing titles, notes, content, examples, questions, answers, and explanations in English.",
+  zh: "输出语言：简体中文。所有面向用户的标题、备注、正文、例子、题目、答案和解析都用简体中文。",
+  ja: "出力言語：日本語。ユーザー向けのタイトル、メモ、本文、例、問題、回答、解説はすべて日本語で書いてください。",
+};
+
+function parseLanguage(language: unknown): Language {
+  return language === "en" || language === "ja" ? language : "zh";
+}
+
 type ArbeitnowJob = {
   slug: string;
   company_name: string;
@@ -375,9 +387,10 @@ function ensureScheduledReviews(state: AppState) {
   return withAutomationNote(nextState, automationModes.monthlyReview, monthStart, "自然月复盘已由后台根据任务完成、风险和进度自动生成。", monthStart);
 }
 
-function dailyLessonPrompt(state: AppState) {
+function dailyLessonPrompt(state: AppState, language: Language = "zh") {
   return [
     "你是 PathPilot 的后台每日学习规划 agent。只返回 JSON，不要 Markdown，不要解释。",
+    outputLanguageInstruction[language],
     "目标：根据当前学习进度、年度进度、总进度，为今天生成约 120 分钟的可执行任务内容。",
     "硬性规则：",
     "- trackId 只能是 analyst、japanese、portfolio。",
@@ -421,8 +434,8 @@ function dailyLessonPrompt(state: AppState) {
   ].join("\n\n");
 }
 
-async function generateDailyLessonPack(state: AppState) {
-  const response = await runHermes(dailyLessonPrompt(state));
+async function generateDailyLessonPack(state: AppState, language: Language = "zh") {
+  const response = await runHermes(dailyLessonPrompt(state, language));
   return extractJsonObject(response);
 }
 
@@ -648,16 +661,18 @@ app.get("/api/agent/status", (_req, res) => {
 
 app.post("/api/agent/run", async (req, res) => {
   try {
-    const body = req.body as { mode: string; prompt: string; state: AppState };
+    const body = req.body as { language?: Language; mode: string; prompt: string; state: AppState };
+    const language = parseLanguage(body.language);
     const agentPrompt = [
       "你是 PathPilot 的 AI Coach，服务于一个单用户长期日本高度人才/技人国迁移规划 App。",
       "你只能做规划、拆解、诊断、润色、模拟面试和材料完整性检查；不要给官方法律结论，不要保证签证结果，不要编造经历或数据。",
+      outputLanguageInstruction[language],
       `当前模式：${body.mode}`,
       "当前 App 状态摘要：",
       JSON.stringify(compactState(body.state), null, 2),
       "用户请求：",
       body.prompt,
-      "请用中文回答，输出要可执行、克制、具体。",
+      "输出要可执行、克制、具体。",
     ].join("\n\n");
 
     const response = await runHermes(agentPrompt);
@@ -667,10 +682,11 @@ app.post("/api/agent/run", async (req, res) => {
   }
 });
 
-app.post("/api/agent/generate-daily-lessons", async (_req, res) => {
+app.post("/api/agent/generate-daily-lessons", async (req, res) => {
   try {
+    const language = parseLanguage((req.body as { language?: Language }).language);
     const state = await readState();
-    const pack = await generateDailyLessonPack(state);
+    const pack = await generateDailyLessonPack(state, language);
     const nextState = ensureDailySummary(addGeneratedLessonPack(state, pack));
     await writeState(nextState);
     res.json({ ok: true, state: nextState, response: pack.notes });

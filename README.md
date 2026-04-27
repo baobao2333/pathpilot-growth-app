@@ -12,6 +12,7 @@ The repository is public-safe by default: runtime state, screenshots, logs, depe
 - Portfolio tracker with case-study fields
 - Opportunity radar backed by public job APIs
 - Visa points and materials planning view
+- Auto-detected interface language with manual English, Chinese, and Japanese overrides
 - Optional AI Coach panel that can call a locally configured Hermes agent
 - Local JSON persistence through the bundled Express server
 
