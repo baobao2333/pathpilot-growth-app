@@ -270,6 +270,15 @@ nav {
   gap: 8px;
 }
 
+.canvas-path-map {
+  width: 100%;
+  min-height: 188px;
+  overflow: hidden;
+  border: 1px solid #516354;
+  border-radius: 8px;
+  background: #314338;
+}
+
 .hero-progress strong {
   font-size: 48px;
 }

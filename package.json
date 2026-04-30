@@ -4,17 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite --host 127.0.0.1\" \"tsx server/index.ts\"",
-    "build": "tsc --noEmit && vite build",
+    "dev": "concurrently \"next dev -H 127.0.0.1\" \"tsx server/index.ts\"",
+    "build": "tsc --noEmit && next build",
+    "start": "concurrently \"next start -H 127.0.0.1\" \"tsx server/index.ts\"",
     "serve": "tsx server/index.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.2.1",
     "express": "^5.1.0",
+    "konva": "^10.2.5",
     "lucide-react": "^0.545.0",
+    "next": "^16.2.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-konva": "^19.2.3",
     "react-markdown": "^10.1.0",
     "tsx": "^4.20.5",
     "vite": "^7.1.7"

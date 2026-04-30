@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowLeft,
   BookOpen,
@@ -21,6 +23,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Circle, Group, Layer, Line, Rect, Stage, Text } from "react-konva";
 import ReactMarkdown from "react-markdown";
 import {
   assetScore,
@@ -877,6 +880,65 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
+function CanvasPathMap({ progress }: { progress: number }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(220);
+  const height = 188;
+  const points = [
+    { x: 28, y: 138, label: "Now" },
+    { x: 86, y: 100, label: "Y1" },
+    { x: 142, y: 62, label: "Y2" },
+    { x: 194, y: 36, label: "Y3" },
+  ];
+  const scale = width / 220;
+  const scaledPoints = points.flatMap((point) => [point.x * scale, point.y]);
+  const completedEnd = Math.max(0, Math.min(points.length - 1, Math.floor((clamp(progress) / 100) * (points.length - 1))));
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const resize = () => setWidth(Math.max(180, Math.round(element.getBoundingClientRect().width)));
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="canvas-path-map" ref={containerRef}>
+      <Stage width={width} height={height}>
+        <Layer>
+          <Rect width={width} height={height} cornerRadius={8} fill="#314338" />
+          <Line points={scaledPoints} stroke="#758475" strokeWidth={3} tension={0.42} lineCap="round" lineJoin="round" />
+          <Line
+            points={points.slice(0, completedEnd + 1).flatMap((point) => [point.x * scale, point.y])}
+            stroke="#d4bd7c"
+            strokeWidth={5}
+            tension={0.42}
+            lineCap="round"
+            lineJoin="round"
+          />
+          {points.map((point, index) => (
+            <Group key={point.label}>
+              <Circle
+                x={point.x * scale}
+                y={point.y}
+                radius={index <= completedEnd ? 8 : 6}
+                fill={index <= completedEnd ? "#f7f0da" : "#435548"}
+                stroke={index <= completedEnd ? "#d4bd7c" : "#758475"}
+                strokeWidth={2}
+              />
+              <Text x={point.x * scale - 18} y={point.y + 14} width={36} align="center" fill="#e7ebdf" fontSize={12} text={point.label} />
+            </Group>
+          ))}
+          <Text x={16} y={18} fill="#f7f0da" fontSize={14} fontStyle="700" text={`${progress}% path`} />
+          <Text x={16} y={42} width={width - 32} fill="#b8c1b6" fontSize={12} text="Canvas roadmap powered by Konva" />
+        </Layer>
+      </Stage>
+    </div>
+  );
+}
+
 function MarkdownBlock({ text }: { text: string }) {
   return (
     <div className="markdown-body">
@@ -1050,6 +1112,7 @@ function TodayView({
           <strong>{totalProgress(state)}%</strong>
           <span>{ui.today.totalProgress}</span>
           <ProgressBar value={totalProgress(state)} />
+          <CanvasPathMap progress={totalProgress(state)} />
         </div>
       </section>
 
