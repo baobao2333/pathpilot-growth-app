@@ -1,471 +1,261 @@
-export type TaskStatus = "todo" | "doing" | "done" | "skipped" | "postponed";
-export type TaskKind = "main" | "maintenance" | "asset" | "explore" | "review";
-export type Intensity = "light" | "standard" | "intensive";
-export type MaterialStatus = "not-started" | "planned" | "doing" | "done" | "verify";
-export type Mastery = 0 | 1 | 2 | 3 | 4;
+export const STATE_VERSION = 11;
 
-export type PracticeQuestion = {
-  id: string;
-  prompt: string;
-  answer: string;
-  explanation: string;
-  options?: string[];
-};
+export type BlockStatus = "not_started" | "in_progress" | "submitted" | "graded";
+export type QuestionType = "choice" | "short";
+export type ReportType = "daily" | "weekly";
+export type AgentName = "PlannerAgent" | "GraderAgent" | "MemoryAgent" | "ReviewAgent" | "ReportAgent";
 
 export type Profile = {
   name: string;
   startDate: string;
-  targetYear: string;
   targetRole: string;
-  currentPhase: string;
-  intensity: Intensity;
-  japaneseLevel: string;
-  education: "bachelor" | "master" | "doctor";
-  age: number;
-  workYears: number;
-  annualIncomeJpy: number;
+  dailyMinutes: number;
+  timezone: string;
 };
 
-export type Task = {
-  id: string;
+export type PlanProfile = {
+  longTermGoal: string;
+  targetTrack: string;
+  targetOutcome: string;
+  constraints: string;
+  preferences: string;
+  maintenanceItems: string;
+  updatedAt: string;
+};
+
+export type StagePlan = {
   title: string;
-  kind: TaskKind;
+  startDate: string;
+  endDate: string;
+  mainObjective: string;
+  deliverables: string;
+  completionCriteria: string;
+  dailyRhythm: string;
+  status: "active" | "completed";
+  updatedAt: string;
+};
+
+export type StageDraft = {
+  status: "pending";
+  reason: string;
+  stagePlan: StagePlan;
+  createdAt: string;
+} | null;
+
+export type PracticeQuestion = {
+  id: string;
+  type: QuestionType;
+  prompt: string;
+  options?: string[];
+  answer: string;
+  rubric: string;
+};
+
+export type LearningBlock = {
+  id: string;
+  date: string;
+  role: "main" | "maintenance";
   track: string;
-  status: TaskStatus;
-  dueDate: string;
-  minutes: number;
-  xp: number;
-  impact: string;
-  notes: string;
-  sourceTopicId?: string;
-  knowledgePoint?: string;
-  question?: PracticeQuestion;
-  questions?: PracticeQuestion[];
-};
-
-export type Milestone = {
-  id: string;
   title: string;
-  standard: string;
-  progress: number;
-  status: "not-started" | "active" | "done";
-};
-
-export type RoadmapYear = {
-  id: string;
-  title: string;
-  theme: string;
-  goals: string[];
-  milestones: Milestone[];
-};
-
-export type Topic = {
-  id: string;
-  title: string;
-  kind: "micro" | "standard" | "deep" | "practice" | "output";
-  minutes: number;
-  mastery: Mastery;
-  notes: string;
-  objective?: string;
-  content?: string;
-  examples?: string[];
-  questions?: PracticeQuestion[];
-};
-
-export type LearningTrack = {
-  id: string;
-  title: string;
-  purpose: string;
-  progress: number;
-  topics: Topic[];
-};
-
-export type PortfolioProject = {
-  id: string;
-  title: string;
-  stage: string;
-  progress: number;
-  problem: string;
-  users: string;
-  solution: string;
-  evidence: string;
-  nextStep: string;
-};
-
-export type Opportunity = {
-  id: string;
-  company: string;
-  tier: "core" | "target" | "watch";
-  role: string;
-  fit: number;
-  visaFit: boolean;
-  contact: string;
-  status: "research" | "contacted" | "interviewing" | "archived";
-  notes: string;
-};
-
-export type VisaInputs = {
-  education: Profile["education"];
-  age: number;
-  workYears: number;
-  annualIncomeJpy: number;
-  jlpt: "none" | "n2" | "n1";
-  hasJapaneseDegree: boolean;
-  hasAdvancedCertificate: boolean;
-  hasResearchOrPatent: boolean;
-};
-
-export type Material = {
-  id: string;
-  title: string;
-  group: string;
-  status: MaterialStatus;
-  notes: string;
-};
-
-export type Review = {
-  id: string;
-  type: "weekly" | "monthly";
-  date: string;
-  wins: string;
-  biggestMove: string;
-  lagging: string;
-  adjustment: string;
-};
-
-export type Badge = {
-  id: string;
-  title: string;
-  unlocked: boolean;
-  condition: string;
-};
-
-export type AgentNote = {
-  id: string;
-  date: string;
-  mode: string;
-  prompt: string;
-  response: string;
-};
-
-export type DailyLesson = {
-  date: string;
-  source: "seed" | "hermes";
-  taskIds: string[];
-  topicIds: string[];
-  generatedAt: string;
-  notes: string;
-};
-
-export type DailySummary = {
-  date: string;
-  plannedMinutes: number;
-  completedMinutes: number;
-  totalTasks: number;
-  completedTasks: number;
-  focus: string;
-  progress: string;
-  risks: string[];
-  nextStep: string;
-  generatedAt: string;
-};
-
-export type AgentDesign = {
-  name: string;
-  trigger: string;
-  inputs: string[];
-  outputs: string[];
-  storage: string;
-  safety: string[];
-  prompt: string;
-};
-
-export type GeneratedLessonTopic = {
-  trackId: string;
-  title: string;
-  kind: Topic["kind"];
-  minutes: number;
   objective: string;
   content: string;
-  examples: string[];
-  questions: Array<Omit<PracticeQuestion, "id"> & { id?: string }>;
+  minutes: number;
+  status: BlockStatus;
+  startedAt?: string;
+  submittedAt?: string;
+  gradedAt?: string;
+  questions: PracticeQuestion[];
+  grade?: GradeResult;
 };
 
-export type GeneratedLessonPack = {
+export type AnswerSubmission = {
+  questionId: string;
+  answer: string;
+};
+
+export type GradeResult = {
+  score: number;
+  passed: boolean;
+  conclusion: string;
+  weaknesses: string[];
+  improvements: string[];
+  showImprovements: boolean;
+  nextDrill?: PracticeQuestion;
+};
+
+export type PracticeAttempt = {
+  id: string;
+  blockId: string;
+  date: string;
+  answers: AnswerSubmission[];
+  elapsedSeconds: number;
+  submittedAt: string;
+  grade: GradeResult;
+};
+
+export type Memory = {
+  id: string;
+  track: string;
+  topic: string;
+  weakness: string;
+  evidence: string;
+  lastSeen: string;
+  priority: number;
+  stageRelevance?: "blocking" | "related" | "general";
+};
+
+export type Report = {
+  id: string;
+  type: ReportType;
+  date: string;
   title: string;
-  notes: string;
-  topics: GeneratedLessonTopic[];
+  summary: string;
+  highlights: string[];
+  nextPlan: string;
+  createdAt: string;
+};
+
+export type AgentRun = {
+  id: string;
+  agent: AgentName;
+  type: string;
+  date: string;
+  status: "completed" | "failed";
+  summary: string;
+  createdAt: string;
 };
 
 export type AppState = {
   version: number;
+  appDate: string;
   profile: Profile;
+  planProfile: PlanProfile;
+  stagePlan: StagePlan;
+  stageDraft: StageDraft;
   xp: number;
   streak: number;
-  freezeCards: number;
   lastCompletionDate: string;
   completedDates: string[];
-  roadmap: RoadmapYear[];
-  tasks: Task[];
-  learning: LearningTrack[];
-  portfolio: PortfolioProject[];
-  opportunities: Opportunity[];
-  visa: {
-    inputs: VisaInputs;
-    materials: Material[];
-  };
-  reviews: Review[];
-  badges: Badge[];
-  agentNotes: AgentNote[];
-  dailyLessons: DailyLesson[];
-  dailySummaries: DailySummary[];
-  agentDesign: AgentDesign;
+  learningFlow: LearningBlock[];
+  memories: Memory[];
+  reports: Report[];
+  practiceAttempts: PracticeAttempt[];
+  agentRuns: AgentRun[];
 };
 
-export const taskKindLabel: Record<TaskKind, string> = {
-  main: "主线",
-  maintenance: "维护",
-  asset: "成果",
-  explore: "探索",
-  review: "复盘",
+export type HomePayload = {
+  state: AppState;
+  todayBlocks: LearningBlock[];
+  todayReport?: Report;
+  latestWeeklyReport?: Report;
+  agentSummary: string;
+  stageSummary: string;
 };
 
-export const taskStatusLabel: Record<TaskStatus, string> = {
-  todo: "未开始",
-  doing: "进行中",
-  done: "已完成",
-  skipped: "已跳过",
-  postponed: "已延期",
+type PlanTopic = {
+  track: string;
+  title: string;
+  objective: string;
+  content: string;
+  questions: Array<Omit<PracticeQuestion, "id">>;
 };
 
-export const materialStatusLabel: Record<MaterialStatus, string> = {
-  "not-started": "未开始",
-  planned: "已计划",
-  doing: "准备中",
-  done: "已完成",
-  verify: "待确认",
-};
-
-const dailyLessonAgentDesign: AgentDesign = {
-  name: "PathPilot Background Agent System",
-  trigger: "每天首次读取 /api/state 时自动运行：生成约 120 分钟任务、写入每日总结、刷新机会雷达；每个自然周/月自动更新复盘。",
-  inputs: [
-    "当前日期、Day N、学习强度",
-    "三年路线图、年度进度、总进度与当前阶段",
-    "学习中心 topic 掌握度、今日任务完成情况与每日总结",
-    "作品集、材料、机会雷达和最近复盘摘要",
-  ],
-  outputs: [
-    "4-6 个具体学习 topic，合计 115-130 分钟",
-    "每个 topic 的详细讲解、例子、2-3 道题目、答案和解析",
-    "与 topic 绑定的今日任务、DailyLesson 记录和 DailySummary 记录",
-    "机会雷达候选项、自然周复盘、自然月复盘",
-  ],
-  storage: "写入 AppState.learning[].topics、AppState.tasks、AppState.dailyLessons、AppState.dailySummaries、AppState.opportunities、AppState.reviews，并由 data/state.json 持久化。",
-  safety: [
-    "只生成学习、作品集和规划内容，不给签证法律结论",
-    "不编造用户真实经历和成果数据",
-    "机会雷达必须标注来源；公开 API 失败时使用保底研究清单，下一次后台刷新自动覆盖",
-    "Hermes 失败时使用本地两小时任务规划，App 仍可用",
-  ],
-  prompt:
-    "生成 JSON：{ title, notes, topics:[{ trackId, title, kind, minutes, objective, content, examples, questions:[{prompt, answer, explanation, options?}] }] }。trackId 只能是 analyst、japanese、portfolio；总时长约 120 分钟；日语按 0 基础从假名开始。",
-};
-
-const seedLearningTracks: LearningTrack[] = [
+const mainTopics: PlanTopic[] = [
   {
-    id: "analyst",
-    title: "系统分析师",
-    purpose: "从考试大纲和系统思维开始，逐步沉淀可用于作品集的分析表达。",
-    progress: 0,
-    topics: [
+    track: "系统分析师",
+    title: "需求与约束的区分",
+    objective: "能把一个业务描述拆成需求、约束和风险。",
+    content:
+      "今天的主线是建立系统分析的基本判断力。需求是系统必须提供的能力，约束是设计时不能突破的限制，风险是不处理会影响目标的不确定因素。学习时先读材料，再用自己的话重写案例，最后完成题目。",
+    questions: [
       {
-        id: "analyst-001",
-        title: "系统分析师考试结构与学习闭环",
-        kind: "standard",
-        minutes: 35,
-        mastery: 0,
-        notes: "",
-        objective: "知道系统分析师考试为什么要分上午/下午/论文，并建立输入、练习、输出的学习闭环。",
-        content:
-          "系统分析师考试不只是背概念，而是考你把业务问题拆成需求、架构、数据、流程和风险的能力。第一天只需要建立地图：上午题用来扫概念，下午题用来练案例分析，论文用来训练结构化表达。",
-        examples: [
-          "上午：识别需求工程、系统架构、数据库、安全等概念。",
-          "下午：读一个业务案例，找出问题、约束和系统改进方案。",
-          "论文：围绕一个主题，用背景、问题、措施、效果四段表达。",
-        ],
-        questions: [
-          {
-            id: "analyst-q001",
-            prompt: "系统分析师备考中，上午题、下午题、论文分别主要训练什么能力？",
-            answer: "上午题训练概念识别，下午题训练案例分析，论文训练结构化表达和经验抽象。",
-            explanation: "三类题型对应不同能力，不应该只刷选择题。",
-          },
-        ],
+        type: "choice" as const,
+        prompt: "“现有系统不能停机超过 10 分钟”更接近哪一类？",
+        options: ["需求", "约束", "风险", "成果"],
+        answer: "约束",
+        rubric: "能区分系统要实现的能力和实施时必须遵守的限制。",
       },
       {
-        id: "analyst-002",
-        title: "需求与约束的区别",
-        kind: "practice",
-        minutes: 30,
-        mastery: 0,
-        notes: "",
-        objective: "能把一个业务描述拆成需求、约束和风险。",
-        content:
-          "需求是系统必须满足的目标或能力，约束是设计时不能突破的条件，风险是不处理会导致目标失败的不确定因素。分析题里先分清这三类，答案会更稳。",
-        examples: [
-          "需求：订单状态要实时同步到客服系统。",
-          "约束：现有 ERP 不能改数据库结构。",
-          "风险：峰值流量导致同步延迟。",
-        ],
-        questions: [
-          {
-            id: "analyst-q002",
-            prompt: "“现有系统不能停机超过 10 分钟”属于需求、约束还是风险？",
-            answer: "约束。",
-            explanation: "它不是系统要实现的新能力，而是实施和设计时必须遵守的限制。",
-          },
-        ],
-      },
-      {
-        id: "analyst-003",
-        title: "用输入-处理-输出描述系统",
-        kind: "practice",
-        minutes: 30,
-        mastery: 0,
-        notes: "",
-        objective: "用 IPO 模型快速描述一个系统边界。",
-        content:
-          "IPO 指 Input、Process、Output。先写输入数据，再写处理规则，最后写输出结果，可以帮助你在案例题里快速抓住系统边界。",
-        examples: ["输入：客户订单。", "处理：校验库存、计算价格、生成支付单。", "输出：订单确认、库存扣减、支付请求。"],
-        questions: [
-          {
-            id: "analyst-q003",
-            prompt: "把“用户提交简历后系统自动生成英文 profile”按 IPO 拆分。",
-            answer: "输入：用户简历和目标岗位；处理：提取经历、匹配岗位关键词、生成英文表达；输出：英文 profile 草稿。",
-            explanation: "只要能清楚说出数据从哪里来、怎么变、变成什么，就完成了第一层系统描述。",
-          },
-        ],
+        type: "short" as const,
+        prompt: "把“用户提交简历后系统自动生成英文 profile”按需求、约束、风险各写一句。",
+        answer: "需求：自动生成英文 profile。约束：基于用户真实简历。风险：生成内容夸大或不适合目标岗位。",
+        rubric: "答案需要覆盖三类，并避免编造用户经历。",
       },
     ],
   },
   {
-    id: "japanese",
-    title: "日语 0 基础",
-    purpose: "从五十音、发音和最小句子开始，不默认任何 N5/N4/N3 基础。",
-    progress: 0,
-    topics: [
+    track: "系统分析师",
+    title: "输入-处理-输出描述系统",
+    objective: "能用 IPO 模型快速描述一个系统边界。",
+    content:
+      "IPO 是 Input、Process、Output。先写输入数据，再写处理规则，最后写输出结果。这个模型适合把模糊想法变成可讨论的系统边界。",
+    questions: [
       {
-        id: "jp-001",
-        title: "平假名あ行：あ・い・う・え・お",
-        kind: "micro",
-        minutes: 20,
-        mastery: 0,
-        notes: "",
-        objective: "认识并能读出あ行五个平假名。",
-        content:
-          "あ行是日语假名的入口：あ a、い i、う u、え e、お o。今天只要做到看到假名能读音，不要求写得漂亮。",
-        examples: ["あ：a，像张开口发 a。", "い：i，短促发 i。", "う：u，嘴唇不要过度撅起。", "え：e。", "お：o。"],
-        questions: [
-          {
-            id: "jp-q001",
-            prompt: "请把 あ・い・う・え・お 依次读成罗马音。",
-            answer: "a / i / u / e / o",
-            explanation: "这是平假名第一行，先建立声音和字形的映射。",
-          },
-        ],
+        type: "choice" as const,
+        prompt: "在 IPO 模型里，“生成学习报告”属于哪一部分？",
+        options: ["Input", "Process", "Output", "Constraint"],
+        answer: "Output",
+        rubric: "能识别系统最终交付给用户或下游的结果。",
       },
       {
-        id: "jp-002",
-        title: "问候语：おはようございます",
-        kind: "micro",
-        minutes: 15,
-        mastery: 0,
-        notes: "",
-        objective: "会识别一个正式早安问候，并知道使用场景。",
-        content:
-          "おはようございます 表示“早上好”，比 おはよう 更礼貌。0 基础阶段先把它当整句记住，不急着分析语法。",
-        examples: ["早上见到同事：おはようございます。", "熟人之间可以说：おはよう。"],
-        questions: [
-          {
-            id: "jp-q002",
-            prompt: "见到不太熟的同事，早上更适合说 おはよう 还是 おはようございます？",
-            answer: "おはようございます。",
-            explanation: "ございます 让表达更礼貌，适合职场和不熟的人。",
-          },
-        ],
-      },
-      {
-        id: "jp-003",
-        title: "最小自我介绍：私は〇〇です",
-        kind: "practice",
-        minutes: 20,
-        mastery: 0,
-        notes: "",
-        objective: "理解并替换“我是……”的最小句型。",
-        content:
-          "私は〇〇です 的意思是“我是〇〇”。私是我，は提示主题，です是礼貌判断句结尾。今天只要求能替换名字或职业。",
-        examples: ["私はリンです。", "私はプロダクトマネージャーです。"],
-        questions: [
-          {
-            id: "jp-q003",
-            prompt: "把“我是产品经理”写成日语最小句。",
-            answer: "私はプロダクトマネージャーです。",
-            explanation: "0 基础阶段可以先使用外来语职业词，重点是掌握 私は〇〇です。",
-          },
-        ],
+        type: "short" as const,
+        prompt: "用 IPO 描述“AI 批改一组学习题目”的系统边界。",
+        answer: "输入：用户答案、参考答案和题目 rubric。处理：比对答案、判断薄弱点、生成反馈。输出：得分、结论、改进点和记忆记录。",
+        rubric: "答案需要包含输入、处理、输出三段。",
       },
     ],
   },
   {
-    id: "portfolio",
-    title: "项目作品集",
-    purpose: "从第一篇 case study 的问题定义开始，把项目变成可展示资产。",
-    progress: 0,
-    topics: [
+    track: "作品集",
+    title: "Case Study 五字段",
+    objective: "能为一个项目写出问题、用户、方案、证据和下一步。",
+    content:
+      "作品集不是流水账，而是证明你如何判断问题、设计方案并验证结果。今天只做第一版结构化表达，不追求华丽。",
+    questions: [
       {
-        id: "portfolio-001",
-        title: "Case Study 的 5 个必填字段",
-        kind: "output",
-        minutes: 30,
-        mastery: 0,
-        notes: "",
-        objective: "能为一个项目写出问题、用户、方案、证据、下一步。",
-        content:
-          "作品集第一版不需要漂亮，先要完整。每个 case study 至少回答 5 个字段：问题是什么、用户是谁、你做了什么、有什么证据、下一步是什么。",
-        examples: [
-          "问题：长期目标无法落到每日任务。",
-          "用户：计划海外职业迁移的产品/AI 从业者。",
-          "方案：路线图 + 今日任务 + 复盘 + AI Coach。",
-        ],
-        questions: [
-          {
-            id: "portfolio-q001",
-            prompt: "一个 case study 初版最少要回答哪 5 个字段？",
-            answer: "问题、用户、方案、证据、下一步。",
-            explanation: "这 5 个字段能保证项目不是流水账，而是可评估的产品资产。",
-          },
-        ],
+        type: "choice" as const,
+        prompt: "Case Study 初版最不应该缺少的是？",
+        options: ["装饰插图", "问题与用户", "复杂动画", "长篇背景故事"],
+        answer: "问题与用户",
+        rubric: "能识别作品集表达的核心是问题和用户，而不是视觉装饰。",
       },
       {
-        id: "portfolio-002",
-        title: "问题定义的一句话模板",
-        kind: "output",
-        minutes: 25,
-        mastery: 0,
-        notes: "",
-        objective: "用一句话写出可验证的问题定义。",
-        content:
-          "问题定义模板：某类用户在某个场景下，因为某个阻碍，无法达成某个目标。这个模板能防止你写成泛泛的愿景。",
-        examples: ["准备日本求职的 AI 产品人，在三年路径推进中，因为任务和成果脱节，无法判断每天行动是否有效。"],
-        questions: [
-          {
-            id: "portfolio-q002",
-            prompt: "用模板改写：我想做一个成长 App。",
-            answer: "有长期海外求职目标的用户，在日常执行中，因为目标跨度大且任务碎片化，无法稳定推进可验证成果。",
-            explanation: "改写后包含用户、场景、阻碍和目标，才适合进入产品设计。",
-          },
-        ],
+        type: "short" as const,
+        prompt: "用一句话定义这个学习助手正在解决的问题。",
+        answer: "长期学习目标的用户缺少持续判断和反馈机制，导致每天行动和长期结果脱节。",
+        rubric: "答案需要包含用户、场景、阻碍和目标。",
+      },
+    ],
+  },
+];
+
+const maintenanceTopics: PlanTopic[] = [
+  {
+    track: "日语维护",
+    title: "早安问候与最小句子",
+    objective: "能识别正式早安问候，并写出一个最小自我介绍句。",
+    content: "维护块只保温，不抢主线时间。今天复习 おはようございます 和 私は〇〇です。",
+    questions: [
+      {
+        type: "choice" as const,
+        prompt: "早上见到不太熟的同事，更适合说哪一句？",
+        options: ["おはよう", "おはようございます", "じゃあね", "ありがとう"],
+        answer: "おはようございます",
+        rubric: "能判断职场场景下更礼貌的表达。",
+      },
+    ],
+  },
+  {
+    track: "日语维护",
+    title: "あ行假名复习",
+    objective: "能按顺序读出 あ、い、う、え、お。",
+    content: "维护块只做短记忆刷新。今天把あ行和罗马音重新对应起来。",
+    questions: [
+      {
+        type: "short" as const,
+        prompt: "请依次写出 あ、い、う、え、お 的罗马音。",
+        answer: "a / i / u / e / o",
+        rubric: "顺序和读音都需要正确。",
       },
     ],
   },
@@ -482,620 +272,356 @@ export function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function clamp(value: number, min = 0, max = 100) {
-  return Math.min(max, Math.max(min, value));
-}
-
-export function average(values: number[]) {
-  if (!values.length) return 0;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-}
-
-export function daysBetween(from: string, to = todayKey()) {
-  const start = new Date(`${from}T00:00:00`);
-  const end = new Date(`${to}T00:00:00`);
-  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-}
-
-export function yearProgress(state: AppState) {
-  const firstYear = state.roadmap[0];
-  return average(firstYear.milestones.map((milestone) => milestone.progress));
-}
-
-export function totalProgress(state: AppState) {
-  return average(
-    state.roadmap.flatMap((year) => year.milestones.map((milestone) => milestone.progress)),
-  );
-}
-
-export function assetScore(state: AppState) {
-  const portfolio = average(state.portfolio.map((project) => project.progress));
-  const materials = Math.round(
-    (state.visa.materials.filter((material) => material.status === "done").length /
-      state.visa.materials.length) *
-      100,
-  );
-  const opportunities = Math.min(100, state.opportunities.length * 12);
-  return average([portfolio, materials, opportunities]);
-}
-
-export function levelFromState(state: AppState) {
-  const progress = totalProgress(state);
-  if (progress === 0 && state.xp === 0 && state.completedDates.length === 0) {
-    return { level: 1, title: "起步者" };
-  }
-  if (progress >= 80 || state.xp >= 6000) return { level: 10, title: "申请准备者" };
-  if (state.opportunities.filter((item) => item.status !== "research").length >= 10) {
-    return { level: 9, title: "市场验证者" };
-  }
-  if (state.profile.japaneseLevel === "N2" || state.profile.japaneseLevel === "N1") {
-    return { level: 8, title: "语言突破者" };
-  }
-  if (state.portfolio.some((project) => project.progress >= 60)) return { level: 7, title: "项目沉淀者" };
-  if (state.roadmap[0].milestones.some((item) => item.title.includes("英文职业定位") && item.progress >= 100)) {
-    return { level: 6, title: "职业定位者" };
-  }
-  if (state.xp >= 2500) return { level: 5, title: "资格挑战者" };
-  if (yearProgress(state) >= 30) return { level: 4, title: "备考者" };
-  if (state.streak >= 14) return { level: 3, title: "执行者" };
-  if (state.tasks.length > 0) return { level: 2, title: "规划者" };
-  return { level: 1, title: "起步者" };
-}
-
-export function calculateVisaPoints(inputs: VisaInputs) {
-  let score = 0;
-  if (inputs.education === "doctor") score += 30;
-  if (inputs.education === "master") score += 20;
-  if (inputs.education === "bachelor") score += 10;
-
-  if (inputs.workYears >= 10) score += 20;
-  else if (inputs.workYears >= 7) score += 15;
-  else if (inputs.workYears >= 5) score += 10;
-  else if (inputs.workYears >= 3) score += 5;
-
-  if (inputs.age < 30) score += 15;
-  else if (inputs.age < 35) score += 10;
-  else if (inputs.age < 40) score += 5;
-
-  if (inputs.annualIncomeJpy >= 10000000) score += 40;
-  else if (inputs.annualIncomeJpy >= 9000000) score += 35;
-  else if (inputs.annualIncomeJpy >= 8000000) score += 30;
-  else if (inputs.annualIncomeJpy >= 7000000) score += 25;
-  else if (inputs.annualIncomeJpy >= 6000000) score += 20;
-  else if (inputs.annualIncomeJpy >= 5000000) score += 15;
-  else if (inputs.annualIncomeJpy >= 4000000) score += 10;
-
-  if (inputs.jlpt === "n1") score += 15;
-  if (inputs.jlpt === "n2") score += 10;
-  if (inputs.hasJapaneseDegree) score += 10;
-  if (inputs.hasAdvancedCertificate) score += 10;
-  if (inputs.hasResearchOrPatent) score += 15;
-
-  return score;
-}
-
-export function riskItems(state: AppState) {
-  const todayTasks = state.tasks.filter((task) => task.dueDate === todayKey());
-  const undoneMain = todayTasks.filter((task) => task.kind === "main" && task.status !== "done").length;
-  const portfolio = average(state.portfolio.map((project) => project.progress));
-  const visaScore = calculateVisaPoints(state.visa.inputs);
-  const risks: string[] = [];
-
-  if (undoneMain > 0) risks.push(`今日还有 ${undoneMain} 个主线任务未闭环`);
-  if (portfolio < 35) risks.push("作品集产出偏薄，本周需要推进一个 case study");
-  if (state.streak < 7) risks.push("连续执行习惯还在建立期，先保住 7 天");
-  if (visaScore < 70) risks.push(`高度人才积分预估 ${visaScore}，需要继续补强语言/收入/证书项`);
-  if (state.opportunities.filter((item) => item.status !== "research").length < 3) {
-    risks.push("机会验证尚浅，建议每周推进公司或猎头连接");
-  }
-
-  return risks.slice(0, 4);
-}
-
-export function refreshBadges(state: AppState) {
-  const doneMaterials = state.visa.materials.filter((material) => material.status === "done").length;
-  return state.badges.map((badge) => {
-    if (badge.id === "start") return { ...badge, unlocked: true };
-    if (badge.id === "seven-days") return { ...badge, unlocked: state.streak >= 7 };
-    if (badge.id === "thirty-days") return { ...badge, unlocked: state.streak >= 30 };
-    if (badge.id === "analyst-entry") return { ...badge, unlocked: yearProgress(state) >= 20 };
-    if (badge.id === "case-study") {
-      return { ...badge, unlocked: state.portfolio.some((project) => project.progress >= 50) };
-    }
-    if (badge.id === "market-explorer") return { ...badge, unlocked: state.opportunities.length >= 20 };
-    if (badge.id === "materials") {
-      return { ...badge, unlocked: doneMaterials / state.visa.materials.length >= 0.5 };
-    }
-    return badge;
-  });
-}
-
-function trackForTopic(state: AppState, topicId: string) {
-  return state.learning.find((track) => track.topics.some((topic) => topic.id === topicId));
-}
-
-function firstQuestion(topic: Topic): PracticeQuestion | undefined {
-  return topic.questions?.[0];
-}
-
-function expandedKnowledgePoint(topic: Topic) {
-  const examples = topic.examples?.length ? `\n例子：${topic.examples.join("；")}` : "";
-  const questions = topic.questions?.length
-    ? `\n练习：${topic.questions.map((question, index) => `${index + 1}. ${question.prompt}`).join(" ")}`
-    : "";
-  const standard =
-    topic.kind === "output"
-      ? "\n完成标准：产出一段可放进作品集或材料库的文字，而不是只看完。"
-      : "\n完成标准：读完讲解、复述关键点、完成练习并核对解析。";
-
-  return [topic.objective && `目标：${topic.objective}`, topic.content, examples, questions, standard]
-    .filter(Boolean)
-    .join("\n");
-}
-
-export function taskFromTopic(
-  topic: Topic,
-  trackTitle: string,
-  kind: TaskKind,
-  dueDate = todayKey(),
-  minutes = topic.minutes,
-): Task {
-  const question = firstQuestion(topic);
+function createDefaultPlanProfile(profile: Profile): PlanProfile {
   return {
-    id: createId("task"),
-    title: `${trackTitle}：${topic.title}`,
-    kind,
-    track: trackTitle,
-    status: "todo",
-    dueDate,
-    minutes,
-    xp: kind === "asset" ? 60 : kind === "maintenance" ? 20 : Math.max(45, Math.round(minutes * 1.1)),
-    impact: topic.objective || "推进今日学习闭环",
-    notes: question ? `题目：${question.prompt}` : "",
-    sourceTopicId: topic.id,
-    knowledgePoint: expandedKnowledgePoint(topic),
-    question,
-    questions: topic.questions,
+    longTermGoal: profile.targetRole,
+    targetTrack: "AI Product / Agent Product Lead",
+    targetOutcome: "建立可持续学习节奏，逐步形成可验证的职业能力与作品集。",
+    constraints: "每天约 120 分钟；主线学习优先，语言学习作为维护项。",
+    preferences: "每天聚焦一个主线，最多一个维护块；避免任务过碎。",
+    maintenanceItems: "语言学习维护：听读/词汇/表达，每天 10-20 分钟。",
+    updatedAt: new Date().toISOString(),
   };
 }
 
-function targetDailyMinutes(intensity: Intensity) {
-  if (intensity === "light") return 90;
-  if (intensity === "intensive") return 150;
-  return 120;
-}
-
-function topicAt(state: AppState, trackId: string, offset: number) {
-  const dayIndex = daysBetween(state.profile.startDate) - 1;
-  const track = state.learning.find((item) => item.id === trackId);
-  if (!track) return undefined;
-  const candidates = track.topics.filter((topic) => topic.mastery < 4);
-  const topic = candidates[(dayIndex + offset) % Math.max(1, candidates.length)];
-  return topic ? { track, topic } : undefined;
-}
-
-function pickDailyTopics(state: AppState) {
-  const base = [
-    { pick: topicAt(state, "analyst", 0), kind: "main" as TaskKind, minutes: 45 },
-    { pick: topicAt(state, "analyst", 1), kind: "main" as TaskKind, minutes: 25 },
-    { pick: topicAt(state, "japanese", 0), kind: "maintenance" as TaskKind, minutes: 20 },
-    { pick: topicAt(state, "portfolio", 0), kind: "asset" as TaskKind, minutes: 30 },
-  ];
-
-  if (state.profile.intensity === "light") return base.filter((_, index) => index !== 1);
-  if (state.profile.intensity === "intensive") {
-    return [...base, { pick: topicAt(state, "portfolio", 1), kind: "asset" as TaskKind, minutes: 30 }];
-  }
-  return base;
-}
-
-export function ensureTodayTasks(state: AppState): AppState {
-  const today = todayKey();
-  const dailyLessons = state.dailyLessons ?? [];
-  const todayTasks = state.tasks.filter((task) => task.dueDate === today);
-  const plannedMinutes = todayTasks.reduce((sum, task) => sum + task.minutes, 0);
-  const expectedTaskCount = state.profile.intensity === "light" ? 3 : state.profile.intensity === "intensive" ? 5 : 4;
-  if (
-    dailyLessons.some((lesson) => lesson.date === today) &&
-    todayTasks.length >= expectedTaskCount &&
-    plannedMinutes >= targetDailyMinutes(state.profile.intensity) - 10
-  ) {
-    return state;
-  }
-
-  const picked = pickDailyTopics(state).filter(
-    (item): item is { pick: { track: LearningTrack; topic: Topic }; kind: TaskKind; minutes: number } => Boolean(item.pick),
-  );
-  const tasks = picked.map(({ pick, kind, minutes }) => taskFromTopic(pick.topic, pick.track.title, kind, today, minutes));
-
-  if (new Date().getDay() === 0) {
-    tasks.push({
-      id: createId("task"),
-      title: "复盘：写出本周最小调整",
-      kind: "review",
-      track: "复盘",
-      status: "todo",
-      dueDate: today,
-      minutes: 15,
-      xp: 30,
-      impact: "避免长期路线偏航",
-      notes: "题目：本周哪个模块最容易滞后？下一周删掉什么、保留什么？",
-      knowledgePoint: "复盘不是总结情绪，而是调整下一阶段的任务密度和重点。",
-      question: {
-        id: "review-q001",
-        prompt: "本周最需要保护的一个主线任务是什么？",
-        answer: "选择一个能直接推进三年路径资产的任务，例如系统分析师学习或作品集输出。",
-        explanation: "复盘要落到下一步行动，不只记录感受。",
-      },
-    });
-  }
-
+function createDefaultStagePlan(profile: Profile): StagePlan {
+  const startDate = todayKey();
+  const end = new Date(`${startDate}T00:00:00`);
+  end.setDate(end.getDate() + 13);
   return {
-    ...state,
-    tasks: [...state.tasks.filter((task) => task.dueDate !== today), ...tasks],
-    dailyLessons: [
-      ...dailyLessons.filter((lesson) => lesson.date !== today),
-      {
-        date: today,
-        source: "seed" as const,
-        taskIds: tasks.map((task) => task.id),
-        topicIds: picked.map(({ pick }) => pick.topic.id),
-        generatedAt: new Date().toISOString(),
-        notes: `本地后台已生成 ${tasks.reduce((sum, task) => sum + task.minutes, 0)} 分钟任务；Hermes 可自动覆盖为更细版本。`,
-      },
-    ],
-  };
-}
-
-export function addGeneratedLessonPack(state: AppState, pack: GeneratedLessonPack): AppState {
-  const today = todayKey();
-  const generatedTopics = pack.topics.slice(0, 6).map((topic) => ({
-    id: createId(`hermes-${topic.trackId}`),
-    title: topic.title,
-    kind: topic.kind,
-    minutes: topic.minutes,
-    mastery: 0 as Mastery,
-    notes: "",
-    objective: topic.objective,
-    content: topic.content,
-    examples: topic.examples,
-    questions: topic.questions.map((question) => ({
-      id: question.id ?? createId("hermes-q"),
-      prompt: question.prompt,
-      answer: question.answer,
-      explanation: question.explanation,
-      options: question.options,
-    })),
-  }));
-
-  const learning = state.learning.map((track) => ({
-    ...track,
-    progress: 0,
-    topics: [
-      ...generatedTopics.filter((_, index) => pack.topics[index]?.trackId === track.id),
-      ...track.topics,
-    ],
-  }));
-
-  const nextState = { ...state, learning, tasks: state.tasks.filter((task) => task.dueDate !== today), dailyLessons: [] };
-  const targetMinutes = targetDailyMinutes(state.profile.intensity);
-  const picked = generatedTopics
-    .flatMap((topic) => {
-      const track = trackForTopic({ ...nextState, learning }, topic.id);
-      return track ? [{ topic: topic as Topic, track }] : [];
-    })
-    .reduce<Array<{ topic: Topic; track: LearningTrack }>>((items, item) => {
-      const planned = items.reduce((sum, current) => sum + current.topic.minutes, 0);
-      return planned < targetMinutes - 5 ? [...items, item] : items;
-    }, []);
-  const tasks = picked.map(({ topic, track }) => {
-    const kind: TaskKind = track.id === "portfolio" ? "asset" : track.id === "japanese" ? "maintenance" : "main";
-    return taskFromTopic(topic, track.title, kind, today, topic.minutes);
-  });
-
-  return {
-    ...nextState,
-    tasks: [...nextState.tasks, ...tasks],
-    dailyLessons: [
-      {
-        date: today,
-        source: "hermes" as const,
-        taskIds: tasks.map((task) => task.id),
-        topicIds: picked.map(({ topic }) => topic.id),
-        generatedAt: new Date().toISOString(),
-        notes: pack.notes || pack.title,
-      },
-    ],
-  };
-}
-
-export function ensureDailySummary(state: AppState): AppState {
-  const today = todayKey();
-  const todayTasks = state.tasks.filter((task) => task.dueDate === today);
-  const completed = todayTasks.filter((task) => task.status === "done");
-  const plannedMinutes = todayTasks.reduce((sum, task) => sum + task.minutes, 0);
-  const completedMinutes = completed.reduce((sum, task) => sum + task.minutes, 0);
-  const mainFocus = todayTasks.find((task) => task.kind === "main")?.track ?? "主线任务";
-  const nextTask = todayTasks.find((task) => task.status !== "done");
-  const existing = state.dailySummaries?.find((item) => item.date === today);
-  const unchanged =
-    existing?.plannedMinutes === plannedMinutes &&
-    existing.completedMinutes === completedMinutes &&
-    existing.totalTasks === todayTasks.length &&
-    existing.completedTasks === completed.length &&
-    existing.nextStep === (nextTask ? nextTask.title : "今日任务已闭环，等待明日后台计划。");
-  const summary: DailySummary = {
-    date: today,
-    plannedMinutes,
-    completedMinutes,
-    totalTasks: todayTasks.length,
-    completedTasks: completed.length,
-    focus: mainFocus,
-    progress:
-      completed.length > 0
-        ? `已完成 ${completed.length}/${todayTasks.length} 个任务，闭环 ${completedMinutes}/${plannedMinutes} 分钟。`
-        : `已安排 ${todayTasks.length} 个任务，计划 ${plannedMinutes} 分钟。`,
-    risks: riskItems(state),
-    nextStep: nextTask ? nextTask.title : "今日任务已闭环，等待明日后台计划。",
-    generatedAt: unchanged && existing ? existing.generatedAt : new Date().toISOString(),
-  };
-
-  return {
-    ...state,
-    dailySummaries: [...(state.dailySummaries ?? []).filter((item) => item.date !== today), summary],
+    title: "确认学习方向与第一阶段能力建设",
+    startDate,
+    endDate: todayKey(end),
+    mainObjective: `围绕 ${profile.targetRole} 建立第一阶段学习主线，并确认每日学习节奏。`,
+    deliverables: "完成第一批学习块、形成可复盘的答题记录、沉淀主要薄弱点。",
+    completionCriteria: "至少完成 5 次主线批改，日报/周报能说明下一阶段重点。",
+    dailyRhythm: "主线 90-110 分钟；维护 10-20 分钟。",
+    status: "active",
+    updatedAt: new Date().toISOString(),
   };
 }
 
 export function createDefaultState(): AppState {
-  const today = todayKey();
-
-  return ensureDailySummary(ensureTodayTasks({
-    version: 3,
-    profile: {
-      name: "我的日本高度人才路径",
-      startDate: today,
-      targetYear: "2029",
-      targetRole: "AI Product / Agent Product Lead",
-      currentPhase: "Year 1 / Day 1 / 起步建模期",
-      intensity: "standard",
-      japaneseLevel: "0基础",
-      education: "bachelor",
-      age: 30,
-      workYears: 5,
-      annualIncomeJpy: 5000000,
-    },
+  const profile = {
+    name: "AI Native 学习助手",
+    startDate: todayKey(),
+    targetRole: "AI Product / Agent Product Lead",
+    dailyMinutes: 120,
+    timezone: "Asia/Shanghai",
+  };
+  return {
+    version: STATE_VERSION,
+    appDate: todayKey(),
+    profile,
+    planProfile: createDefaultPlanProfile(profile),
+    stagePlan: createDefaultStagePlan(profile),
+    stageDraft: null,
     xp: 0,
     streak: 0,
-    freezeCards: 0,
     lastCompletionDate: "",
     completedDates: [],
-    roadmap: [
+    learningFlow: [],
+    memories: [],
+    reports: [],
+    practiceAttempts: [],
+    agentRuns: [],
+  };
+}
+
+export function isAiNativeState(value: unknown): value is AppState {
+  return Boolean(value && typeof value === "object" && (value as AppState).version >= 10);
+}
+
+export function ensurePlanState(state: AppState): AppState {
+  const fallback = createDefaultState();
+  const profile = state.profile ?? fallback.profile;
+  return {
+    ...state,
+    version: STATE_VERSION,
+    profile,
+    planProfile: state.planProfile ?? createDefaultPlanProfile(profile),
+    stagePlan: state.stagePlan ?? createDefaultStagePlan(profile),
+    stageDraft: state.stageDraft ?? null,
+    memories: (state.memories ?? []).map((memory) => ({
+      ...memory,
+      stageRelevance: memory.stageRelevance ?? "general",
+    })),
+  };
+}
+
+export function currentDate(state: AppState) {
+  return state.appDate || todayKey();
+}
+
+export function nextDateKey(date: string) {
+  const next = new Date(`${date}T00:00:00`);
+  next.setDate(next.getDate() + 1);
+  return todayKey(next);
+}
+
+export function todaysBlocks(state: AppState, date = currentDate(state)) {
+  return state.learningFlow.filter((block) => block.date === date);
+}
+
+export function latestReport(state: AppState, type: ReportType) {
+  return [...state.reports].filter((report) => report.type === type).sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+export function hasAgentRun(state: AppState, type: string, date = todayKey()) {
+  return state.agentRuns.some((run) => run.type === type && run.date === date && run.status === "completed");
+}
+
+export function createDailyPlan(state: AppState, date = currentDate(state), rotation = 0) {
+  const highPriority = [...state.memories].sort((a, b) => b.priority - a.priority)[0];
+  const dayIndex = Math.max(0, Math.floor((new Date(`${date}T00:00:00`).getTime() - new Date(`${state.profile.startDate}T00:00:00`).getTime()) / 86400000));
+  const recentMain = latestMainBlock(state, date);
+  const mainTopic = highPriority && highPriority.priority >= 50 && rotation === 0 ? memoryToTopic(highPriority, recentMain?.title) : pickMainTopic(state, date, dayIndex, rotation);
+  const maintenanceTopic = maintenanceTopics[(dayIndex + rotation) % maintenanceTopics.length];
+  const mainBlock = topicToBlock(mainTopic, "main", 100, date);
+  const maintenanceBlock = topicToBlock(maintenanceTopic, "maintenance", 20, date);
+  return [mainBlock, maintenanceBlock];
+}
+
+function latestMainBlock(state: AppState, date: string) {
+  return [...state.learningFlow]
+    .filter((block) => block.role === "main" && block.date < date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+function pickMainTopic(state: AppState, date: string, dayIndex: number, rotation: number) {
+  const recentMain = latestMainBlock(state, date);
+  let topic = mainTopics[(dayIndex + rotation) % mainTopics.length];
+  if (topic.title === recentMain?.title && rotation === 0) topic = mainTopics[(dayIndex + 1) % mainTopics.length];
+  return topic;
+}
+
+function memoryToTopic(memory: Memory, recentTitle?: string): PlanTopic {
+  const baseTitle = memory.topic.replace(/：(?:强化纠错|进阶纠错)$/, "");
+  const suffix = recentTitle === `${baseTitle}：强化纠错` ? "进阶纠错" : "强化纠错";
+  return {
+    track: memory.track,
+    title: `${baseTitle}：${suffix}`,
+    objective: `修正上次在「${baseTitle}」里的薄弱点，并能用自己的话解释正确判断。`,
+    content: `PlannerAgent 根据最近批改记录安排今天的主线。上次暴露的问题是：${memory.weakness}。先复盘错误原因，再用一个新场景重新判断，最后写出可复用的判断规则。`,
+    questions: [
       {
-        id: "year-1",
-        title: "Year 1",
-        theme: "资格与定位年",
-        goals: ["系统分析师", "高度人才积分测算", "英文职业定位", "项目作品集 V1"],
-        milestones: [
-          {
-            id: "y1-analyst-plan",
-            title: "系统分析师学习计划建立",
-            standard: "完成考试大纲拆解、学习日历、真题计划",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y1-analyst-round",
-            title: "系统分析师第一轮学习完成",
-            standard: "覆盖全部一级知识点，完成首轮笔记",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y1-score",
-            title: "高度人才积分测算 V1",
-            standard: "填入学历、职历、年龄、证书、语言、年收，形成首版分数",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y1-english",
-            title: "英文职业定位 V1",
-            standard: "完成英文 profile、headline、核心能力表达",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y1-portfolio",
-            title: "项目作品集 V1",
-            standard: "至少完成 2 个项目 case study 初版",
-            progress: 0,
-            status: "not-started",
-          },
-        ],
+        type: "choice",
+        prompt: `针对「${baseTitle}」的上次错误，今天第一步应该优先做什么？`,
+        options: ["背原答案", "解释判断依据", "跳过薄弱点", "只看结论"],
+        answer: "解释判断依据",
+        rubric: "能从批改结论回到判断规则，而不是机械记忆原题答案。",
       },
       {
-        id: "year-2",
-        title: "Year 2",
-        theme: "语言与市场验证年",
-        goals: ["N2/N1", "日本岗位市场验证", "猎头/公司连接", "项目作品集 V2"],
-        milestones: [
-          {
-            id: "y2-n2",
-            title: "N2 基础达标",
-            standard: "词汇、语法、阅读、听力完成基础训练",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y2-intro",
-            title: "日文自我介绍完成",
-            standard: "可用日语完成 3-5 分钟职业介绍",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y2-companies",
-            title: "日本目标公司清单",
-            standard: "完成不少于 50 家公司分层",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y2-headhunters",
-            title: "猎头连接",
-            standard: "建立不少于 10 个猎头/招聘联系人",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y2-portfolio",
-            title: "项目作品集 V2",
-            standard: "作品集完成英文版，可用于对外发送",
-            progress: 0,
-            status: "not-started",
-          },
-        ],
-      },
-      {
-        id: "year-3",
-        title: "Year 3",
-        theme: "落地与申请年",
-        goals: ["正式求职", "日本侧接收机构", "技人国/高度人才材料", "COE/签证递交准备"],
-        milestones: [
-          {
-            id: "y3-career-pack",
-            title: "求职材料包完成",
-            standard: "英文简历、日文简历、作品集、LinkedIn 完成",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y3-applications",
-            title: "第一批投递完成",
-            standard: "完成 20-30 个高匹配岗位投递/推荐",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y3-interviews",
-            title: "面试记录库建立",
-            standard: "每次面试记录问题、反馈、改进项",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y3-offer",
-            title: "Offer/接收机构锁定",
-            standard: "获得日本侧正式接收条件",
-            progress: 0,
-            status: "not-started",
-          },
-          {
-            id: "y3-visa-pack",
-            title: "签证材料包完成",
-            standard: "学历、职历、收入、证书、语言、岗位说明等材料齐备",
-            progress: 0,
-            status: "not-started",
-          },
-        ],
+        type: "short",
+        prompt: `用一个新例子重写这条薄弱点，并说明你会怎样避免再错：${memory.weakness}`,
+        answer: "先给出新例子，再说明判断依据和避免错误的规则。",
+        rubric: "答案需要包含新例子、判断依据、避免再错的方法三部分。",
       },
     ],
-    tasks: [],
-    learning: seedLearningTracks,
-    portfolio: [
-      {
-        id: "project-agent-persona",
-        title: "AI Agent 虚拟人产品",
-        stage: "Draft",
-        progress: 0,
-        problem: "用户需要一个可长期陪伴、记忆目标并推动执行的 agent。",
-        users: "有长期目标但容易被信息过载打断的高阶职场人。",
-        solution: "通过记忆、任务拆解、复盘和材料生成把目标变成连续行动。",
-        evidence: "",
-        nextStep: "先写出问题定义和目标用户。",
-      },
-      {
-        id: "project-portfolio-editor",
-        title: "作品集生成与编辑器",
-        stage: "Draft",
-        progress: 0,
-        problem: "项目经历散落，无法快速转化成英文/日文求职材料。",
-        users: "准备海外求职的产品/AI 从业者。",
-        solution: "用结构化模板沉淀问题、动作、结果、证据和复盘。",
-        evidence: "",
-        nextStep: "整理第一版 case study 字段。",
-      },
+  };
+}
+
+function topicToBlock(topic: PlanTopic, role: LearningBlock["role"], minutes: number, date: string): LearningBlock {
+  return {
+    id: createId(role === "main" ? "main" : "keep"),
+    date,
+    role,
+    track: topic.track,
+    title: topic.title,
+    objective: topic.objective,
+    content: topic.content,
+    minutes,
+    status: "not_started",
+    questions: topic.questions.map((question, index) => ({
+      id: createId(`q${index + 1}`),
+      ...question,
+    })),
+  };
+}
+
+export function gradeBlock(block: LearningBlock, answers: AnswerSubmission[], elapsedSeconds: number): GradeResult {
+  const answerById = new Map(answers.map((answer) => [answer.questionId, answer.answer.trim()]));
+  const checks = block.questions.map((question) => {
+    const answer = answerById.get(question.id) ?? "";
+    if (!answer) return { ok: false, weakness: `${question.prompt}：未作答` };
+    if (question.type === "choice") {
+      return answer === question.answer
+        ? { ok: true, weakness: "" }
+        : { ok: false, weakness: `${question.prompt}：选择错误，正确答案是 ${question.answer}` };
+    }
+    const required = question.answer
+      .split(/[，。、；：\s/]+/)
+      .map((part) => part.trim())
+      .filter((part) => part.length >= 2)
+      .slice(0, 5);
+    const matched = required.filter((part) => answer.includes(part)).length;
+    return matched >= Math.max(1, Math.ceil(required.length * 0.35))
+      ? { ok: true, weakness: "" }
+      : { ok: false, weakness: `${question.prompt}：回答需要更贴近 rubric：${question.rubric}` };
+  });
+  const correct = checks.filter((check) => check.ok).length;
+  const score = Math.round((correct / Math.max(1, block.questions.length)) * 100);
+  const enoughTime = elapsedSeconds >= block.minutes * 60 * 0.7;
+  const weaknesses = checks.map((check) => check.weakness).filter(Boolean);
+  const improvements = weaknesses.length ? weaknesses : [`${block.track}：继续保持，下一次提高表达完整度。`];
+
+  return {
+    score,
+    passed: score >= 70,
+    conclusion: score >= 70 ? `本组通过，${block.track} 的关键点已经基本掌握。` : `本组需要重做，${block.track} 还有明显薄弱点。`,
+    weaknesses,
+    improvements,
+    showImprovements: !enoughTime || score < 70,
+    nextDrill:
+      !enoughTime || score < 70
+        ? {
+            id: createId("drill"),
+            type: "short",
+            prompt: `用自己的话重新解释：${block.objective}`,
+            answer: block.objective,
+            rubric: "回答需要覆盖本学习块的核心目标，并给出一个例子。",
+          }
+        : undefined,
+  };
+}
+
+export function applyGrade(state: AppState, blockId: string, answers: AnswerSubmission[], elapsedSeconds: number, graderResult?: GradeResult, nextMemories?: Memory[]) {
+  const block = state.learningFlow.find((item) => item.id === blockId);
+  if (!block) throw new Error("Learning block not found.");
+
+  const submittedAt = new Date().toISOString();
+  const grade = graderResult ?? gradeBlock(block, answers, elapsedSeconds);
+  const attempt: PracticeAttempt = {
+    id: createId("attempt"),
+    blockId,
+    date: block.date,
+    answers,
+    elapsedSeconds,
+    submittedAt,
+    grade,
+  };
+  const completedToday = state.completedDates.includes(block.date);
+  const nextCompletedDates = grade.passed && !completedToday ? [...state.completedDates, block.date] : state.completedDates;
+  const nextStreak = grade.passed && !completedToday ? (state.lastCompletionDate === previousDateKey(block.date) ? state.streak + 1 : 1) : state.streak;
+
+  return {
+    ...state,
+    xp: state.xp + Math.round(grade.score / 2),
+    streak: nextStreak,
+    lastCompletionDate: grade.passed ? block.date : state.lastCompletionDate,
+    completedDates: nextCompletedDates,
+    learningFlow: state.learningFlow.map((item) =>
+      item.id === blockId
+        ? {
+            ...item,
+            status: "graded" as const,
+            submittedAt,
+            gradedAt: submittedAt,
+            grade,
+          }
+        : item,
+    ),
+    memories: nextMemories ?? upsertMemories(state.memories, block, grade),
+    practiceAttempts: [attempt, ...state.practiceAttempts],
+    agentRuns: [
+      createAgentRun("GraderAgent", "practice-grade", block.date, `批改 ${block.title}，得分 ${grade.score}`),
+      createAgentRun("MemoryAgent", "memory-update", block.date, `记录 ${grade.improvements.length} 条学习记忆`),
+      ...state.agentRuns,
     ],
-    opportunities: [],
-    visa: {
-      inputs: {
-        education: "bachelor",
-        age: 30,
-        workYears: 5,
-        annualIncomeJpy: 5000000,
-        jlpt: "none",
-        hasJapaneseDegree: false,
-        hasAdvancedCertificate: false,
-        hasResearchOrPatent: false,
-      },
-      materials: [
-        {
-          id: "mat-degree",
-          title: "学历证明",
-          group: "身份与学历",
-          status: "not-started",
-          notes: "",
-        },
-        {
-          id: "mat-employment",
-          title: "职历证明 / 在职证明",
-          group: "职历",
-          status: "not-started",
-          notes: "",
-        },
-        {
-          id: "mat-income",
-          title: "收入证明",
-          group: "职历",
-          status: "not-started",
-          notes: "",
-        },
-        {
-          id: "mat-certs",
-          title: "证书与考试成绩",
-          group: "能力证明",
-          status: "not-started",
-          notes: "系统分析师和 JLPT 后续补充。",
-        },
-        {
-          id: "mat-resume",
-          title: "英文/日文简历",
-          group: "求职材料",
-          status: "not-started",
-          notes: "",
-        },
-        {
-          id: "mat-job",
-          title: "日本岗位说明与接收机构材料",
-          group: "签证材料",
-          status: "not-started",
-          notes: "",
-        },
-      ],
-    },
-    reviews: [],
-    badges: [
-      { id: "start", title: "三年计划启动", unlocked: true, condition: "完成目标初始化" },
-      { id: "seven-days", title: "七日不断线", unlocked: false, condition: "连续完成 7 天" },
-      { id: "thirty-days", title: "三十日执行者", unlocked: false, condition: "连续完成 30 天" },
-      { id: "analyst-entry", title: "系统分析师入门", unlocked: false, condition: "Year 1 进度达到 20%" },
-      { id: "case-study", title: "第一个 Case Study", unlocked: false, condition: "作品集项目达到 50%" },
-      { id: "market-explorer", title: "日本市场探索者", unlocked: false, condition: "记录 20 家目标公司" },
-      { id: "materials", title: "材料管理员", unlocked: false, condition: "完成 50% 材料清单" },
+  };
+}
+
+function upsertMemories(memories: Memory[], block: LearningBlock, grade: GradeResult) {
+  const now = block.date;
+  const next = [...memories];
+  for (const weakness of grade.improvements) {
+    const existing = next.find((memory) => memory.track === block.track && memory.topic === block.title && memory.weakness === weakness);
+    if (existing) {
+      existing.priority = Math.min(100, existing.priority + (grade.passed ? 4 : 14));
+      existing.lastSeen = now;
+      existing.evidence = grade.conclusion;
+    } else {
+      next.push({
+        id: createId("mem"),
+        track: block.track,
+        topic: block.title,
+        weakness,
+        evidence: grade.conclusion,
+        lastSeen: now,
+        priority: grade.passed ? 24 : 62,
+      });
+    }
+  }
+  return next.sort((a, b) => b.priority - a.priority).slice(0, 40);
+}
+
+export function createDailyReport(state: AppState, date = currentDate(state)): Report {
+  const blocks = todaysBlocks(state, date);
+  const graded = blocks.filter((block) => block.status === "graded");
+  const focus = blocks[0]?.title ?? "今日学习流";
+  const weak = state.memories[0]?.weakness ?? "暂无明显薄弱点";
+  return {
+    id: `daily-${date}`,
+    type: "daily",
+    date,
+    title: `${date} 学习日报`,
+    summary: `今日聚焦 ${focus}，已批改 ${graded.length}/${blocks.length} 个学习块。`,
+    highlights: [
+      `主线：${blocks.find((block) => block.role === "main")?.title ?? "等待生成"}`,
+      `维护：${blocks.find((block) => block.role === "maintenance")?.title ?? "等待生成"}`,
+      `当前优先记忆：${weak}`,
     ],
-    agentNotes: [],
-    dailyLessons: [],
-    dailySummaries: [],
-    agentDesign: dailyLessonAgentDesign,
-  }));
+    nextPlan: state.memories.length ? `下一轮优先强化：${state.memories[0].topic}` : "继续按 1 主线 + 维护节奏推进。",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function createWeeklyReport(state: AppState, date = currentDate(state)): Report {
+  const recentAttempts = state.practiceAttempts.slice(0, 10);
+  const averageScore = recentAttempts.length
+    ? Math.round(recentAttempts.reduce((sum, attempt) => sum + attempt.grade.score, 0) / recentAttempts.length)
+    : 0;
+  return {
+    id: `weekly-${weekKey(date)}`,
+    type: "weekly",
+    date: weekKey(date),
+    title: `${weekKey(date)} 周复盘`,
+    summary: `本周平均批改分 ${averageScore || "暂无"}，记忆库保留 ${state.memories.length} 条强化线索。`,
+    highlights: state.memories.slice(0, 3).map((memory) => `${memory.track} / ${memory.topic}：${memory.weakness}`),
+    nextPlan: state.memories[0] ? `下周优先围绕 ${state.memories[0].track} 安排深度块。` : "下周继续建立答题样本。",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function upsertReport(state: AppState, report: Report) {
+  return {
+    ...state,
+    reports: [report, ...state.reports.filter((item) => item.id !== report.id)],
+  };
+}
+
+export function createAgentRun(agent: AgentName, type: string, date: string, summary: string, status: AgentRun["status"] = "completed"): AgentRun {
+  return {
+    id: createId("run"),
+    agent,
+    type,
+    date,
+    status,
+    summary,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function weekKey(date = todayKey()) {
+  const target = new Date(`${date}T00:00:00`);
+  const firstDay = new Date(target.getFullYear(), 0, 1);
+  const dayNumber = Math.floor((target.getTime() - firstDay.getTime()) / 86400000) + 1;
+  const week = Math.ceil((dayNumber + firstDay.getDay()) / 7);
+  return `${target.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+function previousDateKey(date: string) {
+  const previous = new Date(`${date}T00:00:00`);
+  previous.setDate(previous.getDate() - 1);
+  return todayKey(previous);
 }

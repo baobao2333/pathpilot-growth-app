@@ -3,11 +3,14 @@ dist/
 .next/
 
 data/state.json
+data/reports/
+data/backups/
 data/hermes-*.txt
 data/hermes-run-*.sh
 screenshots/
 
 *.log
+tsconfig.tsbuildinfo
 .env
 .env.*
 
